@@ -1,0 +1,180 @@
+# Plan v15 runs on GitHub-hosted runners (CPU). Started manually: Actions -> v15 -> Run workflow.
+#   stage = g0 : code-validation gate only
+#   stage = X  : gate G0, then Stage X (13 existing generators, in-band attacker, both targets) and its aggregate
+#   stage = C  : gate G0, screening (M qualifying new generators), base-generator models (S2), Stage C, aggregate
+# Every job installs the pinned versions; results are uploaded as artifacts (download them promptly; archive on Zenodo).
+name: v15
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "g0, X or C"
+        required: true
+        type: choice
+        options: [g0, X, C]
+      M:
+        description: "Stage C: number of generators (fixed by the v15b addendum)"
+        required: false
+        default: "80"
+
+permissions:
+  contents: read
+
+env:
+  XRP_GEN: v2
+  PYTHONIOENCODING: utf-8
+  PYTHONDONTWRITEBYTECODE: "1"
+  LOKY_MAX_CPU_COUNT: "4"
+
+jobs:
+  g0:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: install pinned versions
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
+          pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
+      - run: python v15/g0_checks.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: g0-report, path: v15/g0_report.json, retention-days: 90 }
+
+  # ------------------------------------------------------------------ Stage X (exploratory)
+  stage_x:
+    if: inputs.stage == 'X'
+    needs: g0
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        gen: [d2, cutoff, fovfree, and, sat, rand00, rand02, rand03, rand04, rand05, rand06, rand07, rand11]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: install pinned versions
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
+          pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
+      - run: python v15/train_v15.py --stage X --gen ${{ matrix.gen }}
+      - run: python v15/analyse_v15.py summarise --stage X --gen ${{ matrix.gen }}
+      - uses: actions/upload-artifact@v4
+        with: { name: "X-${{ matrix.gen }}", path: "results_v15/X/${{ matrix.gen }}", retention-days: 90 }
+
+  x_aggregate:
+    if: inputs.stage == 'X'
+    needs: stage_x
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
+      - uses: actions/download-artifact@v4
+        with: { pattern: "X-*", path: artifacts }
+      - name: arrange
+        run: |
+          mkdir -p results_v15/X
+          for d in artifacts/X-*; do mv "$d" "results_v15/X/${d#artifacts/X-}"; done
+      - run: python v15/analyse_v15.py aggregate --stage X
+      - uses: actions/upload-artifact@v4
+        with: { name: X-analysis, path: results_v15/analysis_X.json, retention-days: 90 }
+
+  # ------------------------------------------------------------------ Stage C (confirmatory)
+  screen:
+    if: inputs.stage == 'C'
+    needs: g0
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    outputs:
+      list: ${{ steps.list.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: install pinned versions
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
+          pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
+      - run: python v15/screen_v15.py --M ${{ inputs.M }}
+      - id: list
+        run: echo "list=$(python -c "import json;print(json.dumps(json.load(open('results_v15/screen/stage_c_generators.json'))['generators']))")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with: { name: screen, path: results_v15/screen, retention-days: 90 }
+
+  s2:
+    if: inputs.stage == 'C'
+    needs: g0
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: install pinned versions
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
+          pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
+      - run: python v15/train_v15.py --stage S2
+      - uses: actions/upload-artifact@v4
+        with: { name: S2, path: results_v15/S2/v2, retention-days: 90 }
+
+  stage_c:
+    if: inputs.stage == 'C'
+    needs: [screen, s2]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        gen: ${{ fromJSON(needs.screen.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: install pinned versions
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
+          pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
+      - uses: actions/download-artifact@v4
+        with: { name: S2, path: results_v15/S2/v2 }
+      - uses: actions/download-artifact@v4
+        with: { name: screen, path: results_v15/screen }
+      - name: train (R3 for the first 20 generators in draw order)
+        run: |
+          IDX=$(python -c "import json;print(json.load(open('results_v15/screen/stage_c_generators.json'))['generators'].index('${{ matrix.gen }}'))")
+          if [ "$IDX" -lt 20 ]; then R3="--r3"; else R3=""; fi
+          python v15/train_v15.py --stage C --gen ${{ matrix.gen }} $R3
+      - run: python v15/analyse_v15.py summarise --stage C --gen ${{ matrix.gen }}
+      - uses: actions/upload-artifact@v4
+        with: { name: "C-${{ matrix.gen }}", path: "results_v15/C/${{ matrix.gen }}", retention-days: 90 }
+
+  c_aggregate:
+    if: inputs.stage == 'C'
+    needs: stage_c
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
+      - uses: actions/download-artifact@v4
+        with: { pattern: "C-*", path: artifacts }
+      - uses: actions/download-artifact@v4
+        with: { name: screen, path: results_v15/screen }
+      - name: arrange
+        run: |
+          mkdir -p results_v15/C
+          for d in artifacts/C-*; do mv "$d" "results_v15/C/${d#artifacts/C-}"; done
+      - run: python v15/analyse_v15.py aggregate --stage C
+      - uses: actions/upload-artifact@v4
+        with: { name: C-analysis, path: results_v15/analysis_C.json, retention-days: 90 }

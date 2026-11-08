@@ -1,0 +1,314 @@
+{
+ "checks": [
+  {
+   "check": "G0.1 v2: identical to stage3 (standard attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.2 v2: identical to stage3 (in-band attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 v2: y_A <= y and y_A only on victims of an attack",
+   "ok": true,
+   "info": {
+    "y": 95,
+    "y_A": 25,
+    "y_A0": 25,
+    "prevented": 0
+   }
+  },
+  {
+   "check": "G0.3 v2: score64 equals stored oracle score and noise reproduces s_noisy",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 v2: removing the attacker never raises the score",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.4 v2: attacker-absent recomputation equals the stored attacker term",
+   "ok": true,
+   "info": 2.235174181852706e-08
+  },
+  {
+   "check": "G0.4 v2: y_A0 equals the Stage-4 attacker-induced label (float32 rounding only)",
+   "ok": true,
+   "info": 0
+  },
+  {
+   "check": "G0.5 v2: deterministic",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.1 d2: identical to stage3 (standard attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.2 d2: identical to stage3 (in-band attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 d2: y_A <= y and y_A only on victims of an attack",
+   "ok": true,
+   "info": {
+    "y": 123,
+    "y_A": 8,
+    "y_A0": 8,
+    "prevented": 0
+   }
+  },
+  {
+   "check": "G0.3 d2: score64 equals stored oracle score and noise reproduces s_noisy",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 d2: removing the attacker never raises the score",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.4 d2: attacker-absent recomputation equals the stored attacker term",
+   "ok": true,
+   "info": 2.2351741790771484e-08
+  },
+  {
+   "check": "G0.4 d2: y_A0 equals the Stage-4 attacker-induced label (float32 rounding only)",
+   "ok": true,
+   "info": 0
+  },
+  {
+   "check": "G0.5 d2: deterministic",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.1 rand00: identical to stage3 (standard attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.2 rand00: identical to stage3 (in-band attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 rand00: y_A <= y and y_A only on victims of an attack",
+   "ok": true,
+   "info": {
+    "y": 49,
+    "y_A": 21,
+    "y_A0": 21,
+    "prevented": 0
+   }
+  },
+  {
+   "check": "G0.3 rand00: score64 equals stored oracle score and noise reproduces s_noisy",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 rand00: removing the attacker never raises the score",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.5 rand00: deterministic",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.1 rand01: identical to stage3 (standard attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.2 rand01: identical to stage3 (in-band attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 rand01: y_A <= y and y_A only on victims of an attack",
+   "ok": true,
+   "info": {
+    "y": 1088,
+    "y_A": 58,
+    "y_A0": 236,
+    "prevented": 7
+   }
+  },
+  {
+   "check": "G0.3 rand01: score64 equals stored oracle score and noise reproduces s_noisy",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 rand01: removing the attacker never raises the score",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.5 rand01: deterministic",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.1 rand02: identical to stage3 (standard attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.2 rand02: identical to stage3 (in-band attack)",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 rand02: y_A <= y and y_A only on victims of an attack",
+   "ok": true,
+   "info": {
+    "y": 83,
+    "y_A": 18,
+    "y_A0": 19,
+    "prevented": 0
+   }
+  },
+  {
+   "check": "G0.3 rand02: score64 equals stored oracle score and noise reproduces s_noisy",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.3 rand02: removing the attacker never raises the score",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.4 rand02: attacker-absent recomputation equals the stored attacker term",
+   "ok": true,
+   "info": 2.8405338525772095e-08
+  },
+  {
+   "check": "G0.4 rand02: y_A0 equals the Stage-4 attacker-induced label (float32 rounding only)",
+   "ok": true,
+   "info": 0
+  },
+  {
+   "check": "G0.5 rand02: deterministic",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.6 reproduces the stored v2 in-band corpus s7_near_near.npz (first 2 cohorts; backbone outputs within 1e-4)",
+   "ok": true,
+   "info": {
+    "different_fields": [],
+    "backbone_max_abs_diff": 7.62939453125e-06
+   }
+  },
+  {
+   "check": "G0.7 d2: recalibrated gain equals the stored E1 gain",
+   "ok": true,
+   "info": [
+    3.5766354799267184,
+    3.5766354799267184
+   ]
+  },
+  {
+   "check": "G0.7 rand00: recalibrated gain equals the stored E1 gain",
+   "ok": true,
+   "info": [
+    1.8886329531677615,
+    1.8886329531677615
+   ]
+  },
+  {
+   "check": "G0.8 d2: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 cutoff: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 fovfree: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 and: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 sat: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand00: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand02: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand03: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand04: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand05: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand06: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand07: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.8 rand11: stored specification equals the code",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.9 Stage C, base-generator and earlier seed ranges are disjoint",
+   "ok": true,
+   "info": null
+  },
+  {
+   "check": "G0.9 Stage C training seeds are new",
+   "ok": true,
+   "info": [
+    101,
+    211,
+    307,
+    401
+   ]
+  }
+ ],
+ "passed": true
+}

@@ -1,20 +1,24 @@
 # Plan v15 runs on GitHub-hosted runners (CPU). Started manually: Actions -> v15 -> Run workflow.
-#   stage = g0 : code-validation gate only
-#   stage = X  : gate G0, then Stage X (13 existing generators, in-band attacker, both targets) and its aggregate
-#   stage = C  : gate G0, screening (M qualifying new generators), base-generator models (S2), Stage C, aggregate
-# Every job installs the pinned versions; results are uploaded as artifacts (download them promptly; archive on Zenodo).
+#   stage = all : the whole pre-registered chain, with no human decision between stages:
+#                 G0 -> Stage X (13 generators) -> gates G1/G2 and M by the plan's rule (v15b, recorded in X-analysis)
+#                 -> if both gates pass: screening (M + 4 spares) and base models (S2) -> Stage C -> final analysis
+#   stage = g0  : code-validation gate only
+#   stage = X   : G0 and Stage X only
+#   stage = C   : G0 and Stage C with the M given below (for re-runs only)
+# Every job installs the pinned versions; results are uploaded as artifacts (kept 90 days; archive them with a DOI).
 name: v15
 
 on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "g0, X or C"
+        description: "all (recommended), g0, X or C"
         required: true
         type: choice
-        options: [g0, X, C]
+        options: [all, g0, X, C]
+        default: all
       M:
-        description: "Stage C: number of generators (fixed by the v15b addendum)"
+        description: "only for stage C: number of generators"
         required: false
         default: "80"
 
@@ -26,6 +30,7 @@ env:
   PYTHONIOENCODING: utf-8
   PYTHONDONTWRITEBYTECODE: "1"
   LOKY_MAX_CPU_COUNT: "4"
+  SPARES: "4"
 
 jobs:
   g0:
@@ -46,7 +51,7 @@ jobs:
 
   # ------------------------------------------------------------------ Stage X (exploratory)
   stage_x:
-    if: inputs.stage == 'X'
+    if: inputs.stage == 'X' || inputs.stage == 'all'
     needs: g0
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -68,10 +73,13 @@ jobs:
         with: { name: "X-${{ matrix.gen }}", path: "results_v15/X/${{ matrix.gen }}", retention-days: 90 }
 
   x_aggregate:
-    if: inputs.stage == 'X'
+    if: inputs.stage == 'X' || inputs.stage == 'all'
     needs: stage_x
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    outputs:
+      gates_pass: ${{ steps.decide.outputs.gates_pass }}
+      M: ${{ steps.decide.outputs.M }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -84,13 +92,25 @@ jobs:
           mkdir -p results_v15/X
           for d in artifacts/X-*; do mv "$d" "results_v15/X/${d#artifacts/X-}"; done
       - run: python v15/analyse_v15.py aggregate --stage X
+      - id: decide
+        name: v15b (pre-specified rule; no human decision)
+        run: |
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          x = json.load(open("results_v15/analysis_X.json"))["stage_x"]
+          print("gates_pass=" + ("true" if x["G1_pass"] and x["G2_pass"] else "false"))
+          print("M=" + str(x["reestimation"]["M_chosen"]))
+          EOF
+          cat "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with: { name: X-analysis, path: results_v15/analysis_X.json, retention-days: 90 }
 
   # ------------------------------------------------------------------ Stage C (confirmatory)
   screen:
-    if: inputs.stage == 'C'
-    needs: g0
+    if: >-
+      always() && needs.g0.result == 'success' &&
+      (inputs.stage == 'C' || (inputs.stage == 'all' && needs.x_aggregate.outputs.gates_pass == 'true'))
+    needs: [g0, x_aggregate]
     runs-on: ubuntu-latest
     timeout-minutes: 360
     outputs:
@@ -103,15 +123,15 @@ jobs:
         run: |
           pip install --index-url https://download.pytorch.org/whl/cpu torch==2.11.0
           pip install numpy==2.2.1 scipy==1.15.0 scikit-learn==1.6.0 pandas==2.2.3
-      - run: python v15/screen_v15.py --M ${{ inputs.M }}
+      - run: python v15/screen_v15.py --M ${{ inputs.stage == 'all' && needs.x_aggregate.outputs.M || inputs.M }} --spares ${{ env.SPARES }}
       - id: list
         run: echo "list=$(python -c "import json;print(json.dumps(json.load(open('results_v15/screen/stage_c_generators.json'))['generators']))")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with: { name: screen, path: results_v15/screen, retention-days: 90 }
 
   s2:
-    if: inputs.stage == 'C'
-    needs: g0
+    if: always() && needs.screen.result == 'success'
+    needs: screen
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -127,7 +147,7 @@ jobs:
         with: { name: S2, path: results_v15/S2/v2, retention-days: 90 }
 
   stage_c:
-    if: inputs.stage == 'C'
+    if: always() && needs.screen.result == 'success' && needs.s2.result == 'success'
     needs: [screen, s2]
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -158,8 +178,8 @@ jobs:
         with: { name: "C-${{ matrix.gen }}", path: "results_v15/C/${{ matrix.gen }}", retention-days: 90 }
 
   c_aggregate:
-    if: inputs.stage == 'C'
-    needs: stage_c
+    if: always() && needs.screen.result == 'success' && needs.stage_c.result != 'skipped'
+    needs: [screen, stage_c]
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:

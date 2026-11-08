@@ -207,7 +207,7 @@ G0 is implemented in `v15/g0_checks.py` (54 checks). It passed locally on 2026-1
 - **Gates.** If any of G1–G2 fails, stop and report to the authors before Stage C:
   - **G1 (detectability):** at least 6 of the 8 prior-drawn generators have observable ceilings ≥ 0.15 for both U and A.
   - **G2 (learnability):** on the median generator, both detectors reach PR-AUC ≥ 3 × prevalence under A.
-- **What Stage X fixes before Stage C (committed as plan v15b, a pure numeric addendum):**
+- **What Stage X fixes before Stage C (plan v15b, a pure numeric addendum).** **[frozen]** v15b is computed automatically by the `x_aggregate` job with the rule of Section 7 and recorded in the `X-analysis` artifact and the run log. If either gate fails, the workflow stops before Stage C. There is no human decision between the stages:
   - M, by the sample-size rule in Section 7, using only the 8 prior-drawn generators.
   - Nothing else: hypotheses, tests, estimands and decision rules are fixed **now**.
 
@@ -220,7 +220,7 @@ G0 is implemented in `v15/g0_checks.py` (54 checks). It passed locally on 2026-1
 **Detectability screening:**
 - Each draw is screened on its own 20-cohort screening corpus.
 - It enters the study if the observable ceilings for U and A are both ≥ 0.15.
-- Draws continue in order until M generators qualify. Draw order and screening results are logged.
+- Draws continue in order until M generators qualify, plus **[frozen]** 4 spare qualifying draws. Draw order and screening results are logged.
 - Screening uses only oracle quantities, never a detector.
 
 **Independence by construction:**
@@ -364,7 +364,7 @@ Family-wise α = 0.05, Bonferroni-split: each primary test at 0.025.
 ### 8.6 Failures and missing data
 
 - A training run that fails is repeated once with the next configuration in grid order.
-- A generator that still cannot be trained is replaced by the next qualifying draw; all such events are reported.
+- A generator that still cannot be trained is replaced by the next qualifying draw; all such events are reported. **[frozen]** Implementation: Stage C trains all M + 4 screened generators. The analysis uses the first M, in draw order, whose runs completed. Spares that are not needed are reported as unused and never analysed.
 - No outcome-dependent exclusion.
 
 ### 8.7 Not analysed
@@ -477,4 +477,4 @@ In every case the result is quantified with confidence intervals over a populati
 - Stage X and Stage C both run on GitHub-hosted CPU runners, with the pinned versions (Python 3.13, numpy 2.2.1, scipy 1.15.0, scikit-learn 1.6.0, pandas 2.2.3, torch 2.11.0 CPU), so every v15 result comes from one environment.
 - One job per generator.
 - Outputs (predictions, labels, models, summaries) are workflow artifacts kept for 90 days. They are downloaded and archived with a DOI.
-- The workflow is started manually: stage `g0`, `X` or `C`.
+- **[frozen]** The workflow is started once, manually, with stage `all`. It runs G0, then Stage X, then the gates and M (v15b), then (if both gates pass) screening, S2, Stage C and the final analysis, with no human decision in between. Stages `g0`, `X` and `C` exist for re-runs only.

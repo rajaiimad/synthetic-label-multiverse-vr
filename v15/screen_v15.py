@@ -26,11 +26,13 @@ THRESH = 0.15
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--M", type=int, default=80)
+    ap.add_argument("--spares", type=int, default=4, help="extra qualifying draws, used only to replace failed generators")
     ap.add_argument("--kmax", type=int, default=399)
     a = ap.parse_args()
     od = HERE.parent / "results_v15" / "screen"
     od.mkdir(parents=True, exist_ok=True)
     log, chosen, t0 = [], [], time.time()
+    total = a.M + a.spares
     for k in range(100, a.kmax + 1):
         v = sample_prior(k)
         r = G.stage_c_ranges(k)
@@ -44,12 +46,12 @@ def main():
         if ok:
             chosen.append(f"c{k}")
         print(f"k {k} agg {v.get('agg', 'sum'):4s} ceil U {c['U']:.3f} A {c['A']:.3f} -> {'IN' if ok else 'out'} "
-              f"({len(chosen)}/{a.M}, {time.time() - t0:.0f}s)", flush=True)
-        if len(chosen) == a.M:
+              f"({len(chosen)}/{total}, {time.time() - t0:.0f}s)", flush=True)
+        if len(chosen) == total:
             break
-    if len(chosen) < a.M:
+    if len(chosen) < total:
         raise SystemExit(f"only {len(chosen)} qualifying generators up to k = {a.kmax}")
-    (od / "stage_c_generators.json").write_text(json.dumps({"M": a.M, "threshold": THRESH, "generators": chosen,
+    (od / "stage_c_generators.json").write_text(json.dumps({"M": a.M, "spares": a.spares, "threshold": THRESH, "generators": chosen,
                                                             "draws": log}, indent=1))
     print(json.dumps(chosen))
 

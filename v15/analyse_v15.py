@@ -352,7 +352,12 @@ def main():
         print(a.gen, {k: round(r["frame"][k]["lam"], 3) for k in ("U", "A") if k in r["frame"]})
         return
     if a.stage == "C":
-        gens = json.loads((OUT / "screen" / "stage_c_generators.json").read_text())["generators"]
+        # plan 8.6: the first M qualifying draws that completed, in draw order (spares replace failed generators only)
+        sc = json.loads((OUT / "screen" / "stage_c_generators.json").read_text())
+        done = [x for x in sc["generators"] if (OUT / "C" / x / "summary_v15.json").exists()]
+        failed = [x for x in sc["generators"][:sc["M"]] if x not in done]
+        gens = done[:sc["M"]]
+        print(f"Stage C: {len(gens)} of M = {sc['M']} used; failed {failed}; spares used {[x for x in gens if x not in sc['generators'][:sc['M']]]}")
     else:
         gens = sorted(p.name for p in (OUT / a.stage).iterdir() if (p / "summary_v15.json").exists())
     res, S = aggregate(a.stage, gens)

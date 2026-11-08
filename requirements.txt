@@ -1,0 +1,6 @@
+# Pinned to the versions of the development machine (Python 3.13.0). CI installs the CPU build of torch.
+numpy==2.2.1
+scipy==1.15.0
+scikit-learn==1.6.0
+pandas==2.2.3
+torch==2.11.0

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+# generated corpora, predictions and outputs (regenerated from seeds; results are archived separately)
+rigorous_rerun/outputs/
+rigorous_rerun/outputs_v2/*
+!rigorous_rerun/outputs_v2/models/
+rigorous_rerun/outputs_v2/models/*
+!rigorous_rerun/outputs_v2/models/backbone_calib_v3.pkl
+results_v15/
+*.npz
+*.npy

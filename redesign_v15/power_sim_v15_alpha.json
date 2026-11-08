@@ -1,0 +1,137 @@
+[
+ {
+  "scenario": "base",
+  "M": 60,
+  "n": 240,
+  "S": 4,
+  "power95": 0.9725,
+  "coverage95": 0.93375,
+  "pi_true": 0.6777938331150943
+ },
+ {
+  "scenario": "base",
+  "M": 80,
+  "n": 240,
+  "S": 4,
+  "power95": 0.99625,
+  "coverage95": 0.945,
+  "pi_true": 0.6777938331150943
+ },
+ {
+  "scenario": "base",
+  "M": 100,
+  "n": 240,
+  "S": 4,
+  "power95": 1.0,
+  "coverage95": 0.93,
+  "pi_true": 0.6777938331150943
+ },
+ {
+  "scenario": "weak",
+  "M": 60,
+  "n": 240,
+  "S": 4,
+  "power95": 0.33875,
+  "coverage95": 0.905,
+  "pi_true": 0.804317030846224
+ },
+ {
+  "scenario": "weak",
+  "M": 80,
+  "n": 240,
+  "S": 4,
+  "power95": 0.4875,
+  "coverage95": 0.9325,
+  "pi_true": 0.804317030846224
+ },
+ {
+  "scenario": "weak",
+  "M": 100,
+  "n": 240,
+  "S": 4,
+  "power95": 0.58875,
+  "coverage95": 0.92375,
+  "pi_true": 0.804317030846224
+ },
+ {
+  "scenario": "boundary_pi0.90",
+  "M": 60,
+  "n": 240,
+  "S": 4,
+  "power95": 0.0125,
+  "coverage95": 0.915,
+  "pi_true": 0.8999999999999999
+ },
+ {
+  "scenario": "boundary_pi0.90",
+  "M": 80,
+  "n": 240,
+  "S": 4,
+  "power95": 0.015,
+  "coverage95": 0.915,
+  "pi_true": 0.8999999999999999
+ },
+ {
+  "scenario": "boundary_pi0.90",
+  "M": 100,
+  "n": 240,
+  "S": 4,
+  "power95": 0.01625,
+  "coverage95": 0.9275,
+  "pi_true": 0.8999999999999999
+ },
+ {
+  "scenario": "boundary_pi0.10",
+  "M": 60,
+  "n": 240,
+  "S": 4,
+  "power95": 0.01375,
+  "coverage95": 0.9075,
+  "pi_true": 0.10000000000000009
+ },
+ {
+  "scenario": "boundary_pi0.10",
+  "M": 80,
+  "n": 240,
+  "S": 4,
+  "power95": 0.01875,
+  "coverage95": 0.91375,
+  "pi_true": 0.10000000000000009
+ },
+ {
+  "scenario": "boundary_pi0.10",
+  "M": 100,
+  "n": 240,
+  "S": 4,
+  "power95": 0.0125,
+  "coverage95": 0.91875,
+  "pi_true": 0.10000000000000009
+ },
+ {
+  "scenario": "mid_pi0.75",
+  "M": 60,
+  "n": 240,
+  "S": 4,
+  "power95": 0.825,
+  "coverage95": 0.92125,
+  "pi_true": 0.75
+ },
+ {
+  "scenario": "mid_pi0.75",
+  "M": 80,
+  "n": 240,
+  "S": 4,
+  "power95": 0.94375,
+  "coverage95": 0.94875,
+  "pi_true": 0.75
+ },
+ {
+  "scenario": "mid_pi0.75",
+  "M": 100,
+  "n": 240,
+  "S": 4,
+  "power95": 0.95375,
+  "coverage95": 0.9175,
+  "pi_true": 0.75
+ }
+]

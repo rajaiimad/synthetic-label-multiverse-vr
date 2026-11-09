@@ -24,6 +24,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -36,6 +37,7 @@ STAGE_X = ["d2", "cutoff", "fovfree", "and", "sat", "rand00", "rand02", "rand03"
            "rand07", "rand11"]                               # = the workflow's stage_x matrix
 SPARES = 4                                                   # = the workflow's env SPARES
 LEGACY_CACHE = ROOT.parent / "rigorous_rerun" / "outputs_v2" / "cache"   # stored v2 near corpus, for check G0.6
+STOP = threading.Event()                                     # set on Ctrl-C: no new job starts
 
 
 def say(msg):
@@ -66,7 +68,8 @@ def run(name, args, env):
         f.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} {' '.join(args)}\n")
         f.flush()
         rc = subprocess.run([PY] + args, cwd=ROOT, env=env, stdout=f, stderr=subprocess.STDOUT).returncode
-    say(f"{name}: {'ok' if rc == 0 else f'FAILED (exit {rc})'} in {(time.time() - t0) / 60:.1f} min")
+    status = "ok" if rc == 0 else "interrupted (Ctrl-C), not a failure" if STOP.is_set() else f"FAILED (exit {rc})"
+    say(f"{name}: {status} in {(time.time() - t0) / 60:.1f} min")
     return rc == 0
 
 
@@ -76,7 +79,7 @@ def step(name, cmds, env):
     if done.exists():
         return True
     for args in cmds:
-        if not run(name, args, env):
+        if STOP.is_set() or not run(name, args, env):
             return False
     done.write_text(time.strftime("%Y-%m-%d %H:%M:%S"))
     return True
@@ -84,8 +87,15 @@ def step(name, cmds, env):
 
 def parallel(jobs, env, workers):
     """jobs: {name: [cmd, ...]}; returns the names that completed."""
-    with ThreadPoolExecutor(workers) as ex:
-        ok = dict(zip(jobs, ex.map(lambda n: step(n, jobs[n], env), jobs)))
+    ex = ThreadPoolExecutor(workers)
+    futs = {n: ex.submit(step, n, jobs[n], env) for n in jobs}
+    try:
+        ok = {n: f.result() for n, f in futs.items()}
+    except KeyboardInterrupt:
+        STOP.set()
+        ex.shutdown(wait=True, cancel_futures=True)
+        raise
+    ex.shutdown()
     return [n for n in jobs if ok[n]]
 
 
@@ -142,4 +152,9 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        STOP.set()
+        say("PAUSED by the user (Ctrl-C). Finished work is kept; run the same command to resume.")
+        sys.exit(130)

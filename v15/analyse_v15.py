@@ -58,6 +58,15 @@ def ap_matrix(P, y, g, W):
     return np.array(pts), np.array(reps)
 
 
+def fcov(a, b, corr=False):
+    """Covariance (or correlation) over the bootstrap replicates where both values are finite. Identical to np.cov /
+    np.corrcoef when every replicate is finite; a replicate without positives (possible only in tiny corpora) gives a
+    non-finite AP and is skipped, as np.nanvar skips it for the variances."""
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    m = np.isfinite(a) & np.isfinite(b)
+    return float((np.corrcoef if corr else np.cov)(a[m], b[m])[0, 1])
+
+
 def summarise(stage, gen, b=B_WITHIN):
     od = OUT / stage / gen
     L = np.load(od / "labels_test.npz")
@@ -116,8 +125,10 @@ def summarise(stage, gen, b=B_WITHIN):
                     half[h] = float(np.log(prs["mpnn"]) - np.log(prs["rawhgb"]))
                 R[name]["split_half"] = [half[0], half[1]]
         if "U" in R and "A" in R:
-            R["cov_UA_two"] = float(np.cov(R["U"]["_two"], R["A"]["_two"])[0, 1])
-            R["corr_UA_two"] = float(np.corrcoef(R["U"]["_two"], R["A"]["_two"])[0, 1])
+            R["cov_UA_two"] = fcov(R["U"]["_two"], R["A"]["_two"])
+            R["corr_UA_two"] = fcov(R["U"]["_two"], R["A"]["_two"], corr=True)
+        if "U" in R and "A0" in R:   # D3: within-generator covariance for the S3 recomputation of psi_T
+            R["cov_UA0_two"] = fcov(R["U"]["_two"], R["A0"]["_two"])
         for v in R.values():
             if isinstance(v, dict):
                 v.pop("_two", None)
@@ -247,6 +258,11 @@ def aggregate(stage, gens, out_name=None):
                    "ci975": [md - stats.t.ppf(0.9875, M - 1) * sd / np.sqrt(M), md + stats.t.ppf(0.9875, M - 1) * sd / np.sqrt(M)],
                    "ratio_change": float(np.exp(md)), "standardised": md / sd if sd > 0 else None,
                    "wilcoxon_p": float(stats.wilcoxon(dlt).pvalue) if M >= 6 else None}
+        # D3 (plan 8.2 and P8): the same comparison on the raw PR-AUC difference scale (robustness, no decision)
+        raw = np.array([(S[x][metric]["A"]["pr_mpnn"] - S[x][metric]["A"]["pr_rawhgb"])
+                        - (S[x][metric]["U"]["pr_mpnn"] - S[x][metric]["U"]["pr_rawhgb"]) for x in gens])
+        r["H2"]["raw_scale"] = {"mean_delta": float(raw.mean()), "sd_delta": float(raw.std(ddof=1)) if M > 1 else None,
+                                "p": float(stats.ttest_1samp(raw, 0.0).pvalue) if M > 1 else None, "ci95": tci(raw)}
         # ---------------- psi_T, psi_N and comparisons
         X = np.c_[lu, la]
         Wm = np.array([[vu.mean(), cua.mean()], [cua.mean(), va.mean()]])
@@ -291,9 +307,25 @@ def aggregate(stage, gens, out_name=None):
             d0 = np.array([S[x][metric]["A0"]["lam"] for x in gens]) - lu
             r["S3_A0"] = {"mean_delta": float(d0.mean()), "ci95": ci([d0[i].mean() for i in BI]),
                           "share_sign_differs_vs_U": float((np.sign(lu) != np.sign(lu + d0)).mean())}
+            # D3 (plan 8.4 S3: "H2 and psi_T are recomputed with these lambda"): the H2 t-test and the model-based psi_T
+            if M > 1:
+                t0 = stats.ttest_1samp(d0, 0.0)
+                r["S3_A0"].update(t=float(t0.statistic), p=float(t0.pvalue), ci95_t=tci(d0))
+            l0 = lu + d0
+            v0 = np.array([S[x][metric]["A0"]["v_two"] for x in gens])
+            c0 = [S[x][metric].get("cov_UA0_two") for x in gens]
+            if M > 2 and all(c is not None for c in c0):
+                c0 = np.array(c0, float)
+                X0 = np.c_[lu, l0]
+                pT0 = psi_T(X0, np.array([[vu.mean(), c0.mean()], [c0.mean(), v0.mean()]]))
+                pT0b = np.array([psi_T(X0[i], np.array([[vu[i].mean(), c0[i].mean()], [c0[i].mean(), v0[i].mean()]]))
+                                 for i in BI])
+                r["S3_A0"]["psi_T"] = {"est": pT0, "ci95": ci(pT0b)}
         if all("UonA" in S[x][metric] for x in gens):
             lm = np.array([S[x][metric]["UonA"]["lam"] for x in gens])
-            r["S4_mismatch"] = {"share_same_winner_as_matched_A": float((np.sign(lm) == np.sign(la)).mean())}
+            same4 = np.sign(lm) == np.sign(la)
+            r["S4_mismatch"] = {"share_same_winner_as_matched_A": float(same4.mean()),
+                                "ci95": ci([same4[i].mean() for i in BI])}             # D3: bootstrap interval
         res[metric] = r
     # S2 generator shift (frame metric)
     if all("S2U" in S[x] for x in gens):

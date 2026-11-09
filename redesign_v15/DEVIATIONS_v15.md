@@ -65,3 +65,26 @@ All v15 results come from this one local environment.
 - The smoke outputs were deleted after the test.
 
 **Cost.** About 10–20% more Stage C compute.
+
+## D3 (2026-11-10): code completed to match the plan text (implementation gaps found by a pre-result audit)
+
+**When.** On the night of D2, before any Stage C computation and before any Stage X detector result was inspected.
+
+**What the audit found.** A line-by-line comparison of `analyse_v15.py` and `train_v15.py` with the frozen plan found four estimands that the plan names but the code did not compute. The plan text is not changed; the code now does what the plan says.
+
+| Plan text | Before | Now |
+|---|---|---|
+| 8.2 and P8: H2 robustness "raw-difference scale" | not computed | `H2.raw_scale`: the mean, SD, t-test p and 95% t-interval of δ on the raw PR-AUC difference scale |
+| 8.4 S3: "H2 and ψ_T are recomputed with these λ" | mean shift with a bootstrap CI, and the naive sign share only | adds the H2 t-test (t, p, t-interval) and the model-based ψ_T for (λ_U, λ_A0), with its bootstrap CI. The within-generator covariance `cov_UA0_two` is now stored per generator |
+| P7: "the full-knowledge oracle is reported only as a loose upper bound" | not computed, and the benign-plan score was not saved | `meta.ceiling_A_full`: the PR-AUC of P(Y_A = 1 \| s, s0). The benign-plan score `score_b0` is saved in `labels_test.npz` |
+| 8.3: secondary estimates with 95% CIs | S4 share without an interval | S4 share with a 95% bootstrap interval over generators |
+
+**Robustness fix.** The U–A covariance of the within-generator bootstrap now uses only the replicates in which both values are finite (`fcov`), as `np.nanvar` already did for the variances. It is identical to `np.cov` when every replicate is finite; this was tested. Non-finite replicates occur only in tiny corpora: in the smoke test (4 test cohorts), a replicate without attack-caused positives made the original covariance NaN.
+
+**Unchanged:** the primary estimands, the tests, the decision rules, training and selection.
+
+**Stage X.** The three Stage X generators whose corpora were built before this change (cutoff, d2, fovfree) lack `score_b0` and `ceiling_A_full`. Stage X is exploratory, and these quantities can be recomputed exactly by regenerating the deterministic corpora.
+
+**Tests.**
+- On 6 smoke generators (separate seeds, deleted afterwards), the complete chain ran: summarise, then aggregate with S3, S4, S5 and H2 on the raw scale.
+- On two 20-cohort corpora with K = 32 (separate seeds 9,200,000+), the full-knowledge A ceiling was at least the attainable ceiling: 0.2967 vs 0.2958, and 0.0325 vs 0.0313. On the 4-cohort smoke corpus the order was reversed (0.354 vs 0.355), a small-sample artefact.

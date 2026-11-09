@@ -41,6 +41,16 @@ TARGETS = {"U": "y", "A": "y_A"}
 K_MC = 32
 
 
+def ceiling_a_full(t):
+    """D3 (plan P7): full-knowledge oracle for target A, a loose upper bound. Knows the benign-plan score s0 as well as
+    s: P(Y_A = 1 | s, s0) = Phi((theta - s0)/sigma) - Phi((theta - s)/sigma) if s > s0, else 0 (attacked victims only)."""
+    from scipy.stats import norm
+    sg = float(t["sigma"])
+    p = np.where(t["victim_of_attack"] == 1,
+                 np.maximum(0.0, norm.cdf((G.THETA - t["score_b0"]) / sg) - norm.cdf((G.THETA - t["score64"]) / sg)), 0.0)
+    return float(average_precision_score(t["y_A"], p)) if t["y_A"].any() else 0.0
+
+
 # ---------------------------------------------------------------- generator specification
 def spec(stage, gen):
     if stage in ("X", "smoke"):
@@ -215,6 +225,7 @@ def main():
                             y_A0=test["y_A0"].astype(np.int8), prevented=test["prevented"].astype(np.int8),
                             victim_of_attack=test["victim_of_attack"].astype(np.int8),
                             p_A_obs=test["p_A_obs"].astype(np.float32), score64=test["score64"],
+                            score_b0=test["score_b0"],             # D3: for the full-knowledge A ceiling (plan P7)
                             ctx=test["ctx"].astype(np.int32), sigma=test["sigma"])
     meta = {"stage": a.stage, "gen": a.gen, "spec": json.loads(json.dumps(sp["v"])), "gain": sp["gain"],
             "dev_seeds": sp["dev"], "test_seeds": sp["test"], "train_seeds": list(sp["train_seeds"]),
@@ -225,7 +236,7 @@ def main():
     if test is not None:
         meta.update(test_rows=int(len(test["y"])), test_prev={t: float(test[l].mean()) for t, l in TARGETS.items()},
                     test_prev_A0=float(test["y_A0"].mean()), prevented=int(test["prevented"].sum()),
-                    ceilings=G.ceilings(test))
+                    ceilings=G.ceilings(test), ceiling_A_full=ceiling_a_full(test))
     (od / "meta.json").write_text(json.dumps(meta, indent=1, default=str))
     if a.stage in ("C", "S2"):
         G.assert_disjoint([tuple(sp["dev"])] + ([tuple(sp["test"])] if sp["test"] else []))

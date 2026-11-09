@@ -102,6 +102,7 @@ def parallel(jobs, env, workers):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=3)
+    ap.add_argument("--stop-after", choices=["X"], help="stop after Stage X and its aggregate (gates and M)")
     a = ap.parse_args()
     LOG.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":   # keep the computer from idle sleep while this runs (closing the lid still sleeps it)
@@ -130,6 +131,9 @@ def main():
     say(f"v15b: G1_pass={x['G1_pass']} G2_pass={x['G2_pass']} M={M}")
     if not gates:
         say("STOP: a feasibility gate failed; Stage C is not run (plan 6.1)")
+        return 0
+    if a.stop_after == "X":
+        say("STOPPED after Stage X, as requested (--stop-after X). Run again without it to continue with Stage C.")
         return 0
 
     # ---------------- Stage C (confirmatory)

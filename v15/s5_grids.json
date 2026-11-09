@@ -1,0 +1,235 @@
+{
+ "seed": 15005,
+ "HGB": [
+  {
+   "lr": 0.0549,
+   "leaves": 83,
+   "msl": 9,
+   "cw": "balanced",
+   "it": 600
+  },
+  {
+   "lr": 0.0285,
+   "leaves": 61,
+   "msl": 127,
+   "cw": "balanced",
+   "it": 300
+  },
+  {
+   "lr": 0.2501,
+   "leaves": 26,
+   "msl": 32,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.1439,
+   "leaves": 68,
+   "msl": 33,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.0647,
+   "leaves": 11,
+   "msl": 5,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.0436,
+   "leaves": 11,
+   "msl": 24,
+   "cw": null,
+   "it": 600
+  },
+  {
+   "lr": 0.031,
+   "leaves": 13,
+   "msl": 11,
+   "cw": null,
+   "it": 600
+  },
+  {
+   "lr": 0.0512,
+   "leaves": 12,
+   "msl": 95,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.096,
+   "leaves": 28,
+   "msl": 34,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.2291,
+   "leaves": 17,
+   "msl": 31,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.2924,
+   "leaves": 19,
+   "msl": 232,
+   "cw": "balanced",
+   "it": 600
+  },
+  {
+   "lr": 0.0834,
+   "leaves": 74,
+   "msl": 11,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.1611,
+   "leaves": 24,
+   "msl": 58,
+   "cw": null,
+   "it": 300
+  },
+  {
+   "lr": 0.1888,
+   "leaves": 15,
+   "msl": 30,
+   "cw": "balanced",
+   "it": 300
+  },
+  {
+   "lr": 0.0329,
+   "leaves": 12,
+   "msl": 223,
+   "cw": "balanced",
+   "it": 300
+  },
+  {
+   "lr": 0.0227,
+   "leaves": 53,
+   "msl": 212,
+   "cw": null,
+   "it": 300
+  }
+ ],
+ "MPNN": [
+  {
+   "h": 128,
+   "lr": 0.00283,
+   "pw": "sqrt",
+   "wd": 0.000104,
+   "logd": false
+  },
+  {
+   "h": 64,
+   "lr": 0.00369,
+   "pw": "full",
+   "wd": 0.000802,
+   "logd": true
+  },
+  {
+   "h": 128,
+   "lr": 0.00962,
+   "pw": "none",
+   "wd": 0.000707,
+   "logd": true
+  },
+  {
+   "h": 32,
+   "lr": 0.00382,
+   "pw": "none",
+   "wd": 0.000495,
+   "logd": false
+  },
+  {
+   "h": 32,
+   "lr": 0.00409,
+   "pw": "sqrt",
+   "wd": 6.65e-05,
+   "logd": false
+  },
+  {
+   "h": 64,
+   "lr": 0.00269,
+   "pw": "sqrt",
+   "wd": 0.00384,
+   "logd": true
+  },
+  {
+   "h": 64,
+   "lr": 0.000497,
+   "pw": "none",
+   "wd": 2.69e-05,
+   "logd": false
+  },
+  {
+   "h": 128,
+   "lr": 0.00229,
+   "pw": "none",
+   "wd": 3.36e-05,
+   "logd": false
+  },
+  {
+   "h": 128,
+   "lr": 0.00123,
+   "pw": "none",
+   "wd": 1.84e-05,
+   "logd": true
+  },
+  {
+   "h": 64,
+   "lr": 0.00161,
+   "pw": "sqrt",
+   "wd": 1.04e-05,
+   "logd": false
+  },
+  {
+   "h": 32,
+   "lr": 0.00685,
+   "pw": "none",
+   "wd": 1.15e-05,
+   "logd": false
+  },
+  {
+   "h": 64,
+   "lr": 0.00123,
+   "pw": "sqrt",
+   "wd": 0.00307,
+   "logd": false
+  },
+  {
+   "h": 128,
+   "lr": 0.000429,
+   "pw": "sqrt",
+   "wd": 2.06e-05,
+   "logd": false
+  },
+  {
+   "h": 64,
+   "lr": 0.00505,
+   "pw": "none",
+   "wd": 0.000134,
+   "logd": true
+  },
+  {
+   "h": 64,
+   "lr": 0.00546,
+   "pw": "full",
+   "wd": 0.000947,
+   "logd": true
+  },
+  {
+   "h": 64,
+   "lr": 0.00469,
+   "pw": "full",
+   "wd": 0.00163,
+   "logd": true
+  }
+ ],
+ "ranges": {
+  "HGB": "lr log-U[0.02, 0.3]; leaves round(log-U[8, 128]); min leaf round(log-U[5, 400]); class weight {none, balanced}; iterations {300, 600} (rounds chosen on validation as before)",
+  "MPNN": "width {32, 64, 128}; lr log-U[3e-4, 1e-2]; positive weight {none, sqrt, full}; weight decay log-U[1e-5, 1e-2]; extra edge feature {no, yes}"
+ }
+}

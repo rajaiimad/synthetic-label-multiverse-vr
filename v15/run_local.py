@@ -144,7 +144,8 @@ def main():
         say("STOP: S2 failed, so Stage C is not run (as in the workflow)")
         return 1
     gens = json.loads((OUT / "screen" / "stage_c_generators.json").read_text())["generators"]
-    jobs = {f"C_{g}": [["v15/train_v15.py", "--stage", "C", "--gen", g] + (["--r3"] if i < 20 else []),
+    jobs = {f"C_{g}": [["v15/train_v15.py", "--stage", "C", "--gen", g] + (["--r3"] if i < 20 else [])
+                       + (["--s5"] if i < 10 else []),                  # S5: deviation D2, first 10 in draw order
                        ["v15/analyse_v15.py", "summarise", "--stage", "C", "--gen", g]] for i, g in enumerate(gens)}
     done = parallel(jobs, env, a.workers)
     say(f"Stage C: {len(done)}/{len(gens)} generators completed (M = {M} needed)")

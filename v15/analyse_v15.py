@@ -123,7 +123,7 @@ def summarise(stage, gen, b=B_WITHIN):
                 v.pop("_two", None)
         res[metric] = R
     # S2 (generator shift) and R3 (positive count): point PR-AUCs per detector, frame level
-    for cond, lab in (("S2U", "U"), ("S2A", "A"), ("UR3", "U")):
+    for cond, lab in (("S2U", "U"), ("S2A", "A"), ("UR3", "U"), ("S5U", "U"), ("S5A", "A")):   # S5: deviation D2
         if f"{cond}_mpnn" in P:
             y = labels[lab]
             res[cond] = {d: float(np.mean([Sorted(p, y, g).ap() for p in P[f"{cond}_{d}"]])) for d in DETS}
@@ -176,6 +176,39 @@ def ci(x, lo=2.5, hi=97.5):
     x = np.asarray(x, float)
     x = x[np.isfinite(x)]
     return [float(np.percentile(x, lo)), float(np.percentile(x, hi))]
+
+
+def tci(x, level=0.95):
+    x = np.asarray(x, float)
+    if len(x) < 2:
+        return None
+    h = stats.t.ppf(0.5 + level / 2, len(x) - 1) * x.std(ddof=1) / np.sqrt(len(x))
+    return [float(x.mean() - h), float(x.mean() + h)]
+
+
+def s5_summary(S, gens):
+    """Deviation D2, secondary outcome S5 (tuning budget; frame metric; no test, estimates only).
+    Per target: generators whose winner (sign of lambda) is unchanged when selection is over 32 instead of 16
+    configurations; mean change in lambda with a 95% t-interval; each detector's mean log gain in PR-AUC. Pre-specified
+    reading: 'sensitive to the tuning budget' if the winner changes on 3 or more of the 10 generators for either target.
+    The number of generators whose primary lambda lies within 1.96 within-generator SDs of zero is reported as context."""
+    s5 = [x for x in gens if "S5U" in S[x] and "S5A" in S[x]]
+    if not s5:
+        return None
+    out = {"n": len(s5), "generators": s5}
+    for t in ("U", "A"):
+        lam0 = np.array([S[x]["frame"][t]["lam"] for x in s5])
+        lam1 = np.array([S[x][f"S5{t}"]["lam"] for x in s5])
+        sd0 = np.sqrt([S[x]["frame"][t]["v_two"] for x in s5])
+        same = np.sign(lam0) == np.sign(lam1)
+        gain = {d: np.log([S[x][f"S5{t}"][d] for x in s5]) - np.log([S[x]["frame"][t][f"pr_{d}"] for x in s5]) for d in DETS}
+        out[t] = {"n_same_winner": int(same.sum()), "share_same_winner": float(same.mean()),
+                  "mean_change_lambda": float((lam1 - lam0).mean()), "mean_change_lambda_ci95": tci(lam1 - lam0),
+                  "mean_log_gain": {d: float(gain[d].mean()) for d in DETS},
+                  "mean_log_gain_ci95": {d: tci(gain[d]) for d in DETS},
+                  "n_primary_lambda_within_1p96_sd_of_zero": int((np.abs(lam0) < 1.96 * sd0).sum())}
+    out["sensitive_to_tuning_budget"] = bool(any(out[t]["n_same_winner"] <= len(s5) - 3 for t in ("U", "A")))
+    return out
 
 
 def aggregate(stage, gens, out_name=None):
@@ -279,6 +312,9 @@ def aggregate(stage, gens, out_name=None):
                                     "ci95": [float(dd.mean() - stats.t.ppf(0.975, len(dd) - 1) * dd.std(ddof=1) / np.sqrt(len(dd))),
                                              float(dd.mean() + stats.t.ppf(0.975, len(dd) - 1) * dd.std(ddof=1) / np.sqrt(len(dd)))]
                                     if len(dd) > 1 else None}
+    s5 = s5_summary(S, gens)
+    if s5:
+        res["S5_tuning_budget"] = s5
     # descriptive context
     res["context"] = {x: {"agg": S[x]["meta"]["spec"].get("agg", "sum"), "ceilings": S[x]["meta"].get("ceilings"),
                           "prev": S[x]["prev"], "prevented": S[x]["meta"].get("prevented"),

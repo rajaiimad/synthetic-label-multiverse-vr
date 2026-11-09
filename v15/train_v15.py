@@ -160,11 +160,46 @@ def train_one(od, tag, det, dev, test, ylab, seeds, grid_n=None, keep_rows=None)
         (od / f"done_{tag}_{det}.flag").write_text("ok")
 
 
+def train_s5(od, tag, det, dev, test, ylab, seeds, grid_n=None):
+    """Deviation D2, secondary outcome S5 (tuning budget). Per seed, the 16 frozen extra configurations of
+    v15/s5_grids.json are trained on the same split as the primary run; selection is over the union of the primary 16
+    and these 16 (validation PR-AUC on the same target; a new configuration must be strictly better, so ties keep the
+    primary choice, as the primary selection keeps the first best in grid order). The primary predictions and
+    selection are reused, not recomputed, and are never modified. Writes preds_S5<tag>_<det>.npy."""
+    f = od / f"preds_S5{tag}_{det}.npy"
+    if f.exists():
+        return
+    fam, specname = DETS[det]
+    grid = json.loads((HERE / "s5_grids.json").read_text())[fam]
+    grid = grid[:grid_n] if grid_n else grid
+    prim = json.loads((od / f"selection_{tag}_{det}.json").read_text())["selection"]
+    prim_preds = np.load(od / f"preds_{tag}_{det}.npy")
+    builder = SPECS[specname][1]
+    y = dev[ylab]
+    kd, kt = builder(dev), builder(test)
+    preds, sel, fails = [], [], []
+    for i, s in enumerate(seeds):
+        assert prim[i]["seed"] == s, "primary selection out of seed order"
+        tr, va = train_val_split(dev["ctx"], y, s)
+        best, tried = select(fam, make_d(kd, kt, y, tr, va), s, grid, fails)
+        use_new = best is not None and best["val_pr"] > prim[i]["val_pr"]
+        if use_new:
+            preds.append(best["pt"]["test"].astype(np.float32))
+            save_model(od / "models" / f"S5{tag}_{det}_seed{s}", fam, best["meta"], best["cfg"])
+        else:
+            preds.append(prim_preds[i])
+        sel.append({"seed": s, "source": "extra" if use_new else "primary", "primary_val_pr": prim[i]["val_pr"],
+                    "best_extra": None if best is None else {"cfg": best["cfg"], "val_pr": best["val_pr"]}, "tried": tried})
+    (od / f"selection_S5{tag}_{det}.json").write_text(json.dumps({"selection": sel, "failures": fails}, default=str, indent=1))
+    np.save(f, np.array(preds, np.float32))
+
+
 def main():
     ap_ = argparse.ArgumentParser()
     ap_.add_argument("--stage", required=True, choices=["X", "C", "S2", "smoke"])
     ap_.add_argument("--gen", default="v2")
     ap_.add_argument("--r3", action="store_true", help="also run robustness R3 (positive-count control)")
+    ap_.add_argument("--s5", action="store_true", help="also run S5 (tuning budget, deviation D2)")
     a = ap_.parse_args()
     t0 = time.time()
     sp = spec(a.stage, a.gen)
@@ -224,6 +259,11 @@ def main():
             keep = np.sort(np.r_[np.where(dev["y"] == 0)[0], keep_pos])
             for det in DETS:
                 train_one(od, "UR3", det, dev, test, "y", sp["train_seeds"], grid_n, keep_rows=keep)
+    if a.s5 and a.stage in ("C", "smoke"):   # S5 (deviation D2): first 10 Stage C generators in draw order
+        for tag, lab in TARGETS.items():
+            for det in DETS:
+                train_s5(od, tag, det, dev, test, lab, sp["train_seeds"], grid_n)
+                print(f"[{a.stage}/{a.gen}] S5 {tag} {det} done ({time.time() - t0:.0f}s)", flush=True)
     print(f"[{a.stage}/{a.gen}] DONE ({time.time() - t0:.0f}s)", flush=True)
 
 

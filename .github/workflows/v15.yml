@@ -168,11 +168,12 @@ jobs:
         with: { name: S2, path: results_v15/S2/v2 }
       - uses: actions/download-artifact@v4
         with: { name: screen, path: results_v15/screen }
-      - name: train (R3 for the first 20 generators in draw order)
+      - name: train (R3 for the first 20 and S5, deviation D2, for the first 10 generators in draw order)
         run: |
           IDX=$(python -c "import json;print(json.load(open('results_v15/screen/stage_c_generators.json'))['generators'].index('${{ matrix.gen }}'))")
           if [ "$IDX" -lt 20 ]; then R3="--r3"; else R3=""; fi
-          python v15/train_v15.py --stage C --gen ${{ matrix.gen }} $R3
+          if [ "$IDX" -lt 10 ]; then S5="--s5"; else S5=""; fi
+          python v15/train_v15.py --stage C --gen ${{ matrix.gen }} $R3 $S5
       - run: python v15/analyse_v15.py summarise --stage C --gen ${{ matrix.gen }}
       - uses: actions/upload-artifact@v4
         with: { name: "C-${{ matrix.gen }}", path: "results_v15/C/${{ matrix.gen }}", retention-days: 90 }

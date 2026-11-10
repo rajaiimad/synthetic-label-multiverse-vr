@@ -27,7 +27,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--M", type=int, default=80)
     ap.add_argument("--spares", type=int, default=4, help="extra qualifying draws, used only to replace failed generators")
-    ap.add_argument("--kmax", type=int, default=399)
+    ap.add_argument("--kmax", type=int, default=998)   # D4: the plan says "until M qualify"; 998 is the largest k with disjoint ranges
     a = ap.parse_args()
     od = HERE.parent / "results_v15" / "screen"
     od.mkdir(parents=True, exist_ok=True)

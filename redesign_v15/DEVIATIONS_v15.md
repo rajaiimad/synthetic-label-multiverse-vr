@@ -88,3 +88,35 @@ All v15 results come from this one local environment.
 **Tests.**
 - On 6 smoke generators (separate seeds, deleted afterwards), the complete chain ran: summarise, then aggregate with S3, S4, S5 and H2 on the raw scale.
 - On two 20-cohort corpora with K = 32 (separate seeds 9,200,000+), the full-knowledge A ceiling was at least the attainable ceiling: 0.2967 vs 0.2958, and 0.0325 vs 0.0313. On the 4-cohort smoke corpus the order was reversed (0.354 vs 0.355), a small-sample artefact.
+
+## D4 (2026-11-10): screening cap raised so that screening continues until M + 4 draws qualify, as the plan says
+
+**When.** 2026-11-10, about 7 minutes into Stage C screening. At that point:
+- 23 draws (k = 100–122) had been screened, and 9 qualified;
+- no Stage C corpus for training had been generated and no detector had been trained;
+- no Stage C output exists other than these oracle screening values.
+
+**Plan text.** Section 6.2: "Draws continue in order until M generators qualify, plus 4 spare qualifying draws."
+
+**Code before.** `screen_v15.py` stopped at k = 399 (`--kmax`, default 399) and exited with an error if fewer than M + 4 = 104 draws had qualified by then. That would have stopped the chain before Stage C.
+- The cap was an implementation bound, not a plan quantity. The plan estimated "about 120 draws" from Stage X, where 6 of 8 prior draws qualified.
+- In the first 23 Stage C draws the qualification rate was 9/23 (39%). Draws with log-sum-exp aggregation, which did not occur among the 8 prior draws of Stage X, failed in every case so far.
+- At about 40%, roughly 260 draws are needed. The cap of 300 draws therefore had a real chance of being reached.
+
+**Change.**
+- `--kmax` now defaults to 998. This is the largest k for which `gen_v15.stage_c_ranges` keeps all Stage C seed ranges disjoint: dev < 2,000,000 ≤ test < 3,000,000 ≤ screening < 4,000,000 = the S2 range. `stage_c_ranges` already asserts k < 999.
+- Gate check G0.9 now verifies the disjointness of the seed ranges for k = 100–998 instead of 100–399. G0 is re-run before screening resumes.
+
+**Unchanged:**
+- the draw order;
+- the qualification rule (both ceilings ≥ 0.15 on the 20-cohort screening corpus);
+- M, the 4 spares and the selection of the first M completed draws;
+- every analysis.
+
+No draw is skipped or reordered, so the qualifying draws are exactly those the plan's rule defines. The only effect of the change is that the screen does not stop early.
+
+**Run record.**
+- The chain was paused by the assistant (Ctrl-C at 11:46:49). The run log shows this pause as "PAUSED by the user".
+- It was restarted from the commit that contains this deviation.
+- Screening restarts from k = 100. It is deterministic, and nothing from the paused screen was kept, because `screen_v15.py` writes its output only at the end.
+- The number of draws screened, the number excluded and the reasons are reported in the paper (Table S2), as the plan requires (Section 4.4).

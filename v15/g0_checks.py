@@ -105,8 +105,8 @@ for name in SX:
     spec = STRUCT[name] if name in STRUCT else sample_prior(int(name[4:]))
     chk(f"G0.8 {name}: stored specification equals the code", norm_(spec) == SX[name]["spec"])
 
-# 9. seed ranges of Stage C (k = 100..399), the base generator and the training seeds
-rngs = [r for k in range(100, 400) for r in G.stage_c_ranges(k).values()] + [G.BASE_S2_DEV]
+# 9. seed ranges of Stage C (k = 100..998, deviation D4), the base generator and the training seeds
+rngs = [r for k in range(100, 999) for r in G.stage_c_ranges(k).values()] + [G.BASE_S2_DEV]
 try:
     G.assert_disjoint(rngs)
     chk("G0.9 Stage C, base-generator and earlier seed ranges are disjoint", True)

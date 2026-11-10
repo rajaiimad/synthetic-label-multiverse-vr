@@ -128,3 +128,41 @@ No draw is skipped or reordered, so the qualifying draws are exactly those the p
   - sum: 73 of 118;
   - max: 25 of 51;
   - log-sum-exp: 6 of 70.
+
+## D5 (2026-11-10): added secondary outcome S6, the meaningful gap
+
+**When.** Approved by the authors on 2026-11-10 and specified, implemented and committed the same afternoon:
+- during Stage C training (started 13:03);
+- before any Stage C detector result was inspected. Only progress lines and oracle ceilings in the job logs had been read.
+
+The code was committed before it was run on any study data, Stage X included. Before that commit it was tested only on synthetic data (the self-test below).
+
+**Why.** A pre-result risk review identified the strongest expected objection: winner flips between MPNN and Raw-HGB could be flips between nearly tied detectors and so carry no practical meaning. The plan's noise reference ψ_N addresses sampling noise but not practical size. A check added after the results would be post hoc, so it is added now.
+
+**What is added.** A secondary outcome with no hypothesis test; nothing in Sections 2–9 of the plan changes. Frame level, on the M analysed Stage C generators. Full definitions are in `v15/s6_meaningful_gap.py`.
+
+- **Margin.** c = log 1.10: one detector's PR-AUC is at least 10% higher than the other's. This is the primary margin. Sensitivity margins are log 1.05 and log 1.25; they are reported next to it and never substituted for it.
+- **Observed counts**, under U and under A:
+  - generators with λ ≥ c, with λ ≤ −c, and with |λ| < c (near tie);
+  - the same counts restricted to generators whose within-generator 95% interval also excludes 0;
+  - meaningful target flips: opposite signs of λ^U and λ^A with both |λ| ≥ c.
+- **Model-based estimates.** These come from the random-effects models of plan 8.2–8.3, with the same 4000 bootstrap resamples over generators as the primary analysis:
+  - π₊(c) = P(λ^U ≥ c) and π₋(c) = P(λ^U ≤ −c);
+  - ψ_G(c) = 2π₊(c)π₋(c);
+  - ψ_T(c): the probability under the bivariate ψ_T model that λ^U and λ^A have opposite winners, each by at least c;
+  - ψ_N(c): the probability that two independent replications of the same generator give opposite winners, each by at least c;
+  - ψ_G(c) − ψ_N(c) and ψ_T(c) − ψ_N(c), with paired intervals.
+
+  At c = 0 these equal the plan's ψ_G, ψ_T and ψ_N.
+- **Pre-specified reading, at c = log 1.10.**
+  - If the 95% interval of ψ_G(c) − ψ_N(c) lies above 0, the paper states that the generator changes the winner by a meaningful margin more often than noise does.
+  - Otherwise the paper states that, at this margin, generator-driven flips cannot be distinguished from noise.
+  - The same rule applies to ψ_T(c).
+
+**Code.**
+- New script `v15/s6_meaningful_gap.py`, run after the C aggregate: `python v15/s6_meaningful_gap.py --stage C`. It writes `results_v15/s6_meaningful_gap_C.json`.
+- It imports the estimators of `analyse_v15.py` unchanged. No file used by the running chain is modified, so the code executed by Stage C remains that of commit 51c8f9f.
+
+**Tests before the commit.** `--selftest` on synthetic data:
+- at c = 0, ψ_G(c), ψ_T(c) and ψ_N(c) equal the plan's ψ_G, ψ_T and ψ_N to within 10⁻⁶;
+- larger margins never increase ψ_T(c) or ψ_N(c).

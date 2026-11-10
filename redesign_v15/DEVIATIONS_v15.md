@@ -120,3 +120,11 @@ No draw is skipped or reordered, so the qualifying draws are exactly those the p
 - It was restarted from the commit that contains this deviation.
 - Screening restarts from k = 100. It is deterministic, and nothing from the paused screen was kept, because `screen_v15.py` writes its output only at the end.
 - The number of draws screened, the number excluded and the reasons are reported in the paper (Table S2), as the plan requires (Section 4.4).
+
+**D4 outcome (added after screening; no detector result exists yet).**
+- Screening needed 239 draws (k = 100–338) to obtain 104 qualifying generators: 104 of 239 qualified (44%).
+- So the old cap (k ≤ 399) would not have been reached in the event. D4 changed no draw and no selection.
+- By aggregation type, the draws that qualified were:
+  - sum: 73 of 118;
+  - max: 25 of 51;
+  - log-sum-exp: 6 of 70.

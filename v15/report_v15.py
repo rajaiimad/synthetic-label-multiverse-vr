@@ -214,6 +214,18 @@ def tables(stage, an, gens, S, d, tc, out):
                          f"{v['n_primary_lambda_within_1p96_sd_of_zero']} of {s5['n']}"])
         if "sensitive_to_tuning_budget" in s5:
             rows.append(["S5 pre-specified reading: sensitive to the tuning budget", fmt(s5["sensitive_to_tuning_budget"], "")])
+    s6 = an.get("S6")
+    if s6:
+        for k in ("1.10", "1.05", "1.25"):
+            r6, tag = s6[k], f"S6 margin {k}" + (" (primary)" if k == s6["primary"] else "")
+            o, m = r6["observed"], r6["model"]
+            rows += [[f"{tag}: generators with MPNN / Raw-HGB better by the margin / near tie, U",
+                      f"{o['U']['n_mpnn']} / {o['U']['n_rawhgb']} / {o['U']['n_near_tie']}"],
+                     [f"{tag}: the same, A", f"{o['A']['n_mpnn']} / {o['A']['n_rawhgb']} / {o['A']['n_near_tie']}"],
+                     [f"{tag}: target flips, all / with both gaps above the margin",
+                      f"{o['n_target_flips']} / {o['n_meaningful_target_flips']}"],
+                     [f"{tag}: ψ_G(c) − ψ_N(c)", fmt(m["psi_G_minus_psi_N"]["est"]) + " " + fmt(m["psi_G_minus_psi_N"]["ci95"], "ci2")],
+                     [f"{tag}: ψ_T(c) − ψ_N(c)", fmt(m["psi_T_minus_psi_N"]["est"]) + " " + fmt(m["psi_T_minus_psi_N"]["ci95"], "ci2")]]
     ch = g(an, "frame.checks", {})
     rows += [["Shapiro–Wilk p of λ^U (descriptive)", fmt(ch.get("shapiro_lambda_U_p"), "p")],
              ["Leave-one-generator-out range of π̂_U", fmt(ch.get("loo_pi_range"), "ci2")],
@@ -382,6 +394,9 @@ def build(stage):
     (out / "tables").mkdir(parents=True, exist_ok=True)
     (out / "figures").mkdir(parents=True, exist_ok=True)
     d, tc = derived(stage, an, gens, S)
+    s6f = RES / f"s6_meaningful_gap_{stage}.json"                     # deviation D5 (secondary outcome S6), if run
+    if s6f.exists():
+        an = {**an, "S6": json.loads(s6f.read_text())}
     numbers = {**flat({k: v for k, v in an.items() if k != "generators"}), **flat(d, "derived")}
     (out / "numbers.json").write_text(json.dumps(numbers, indent=1, default=float, ensure_ascii=False), encoding="utf-8")
     tables(stage, an, gens, S, d, tc, out / "tables")

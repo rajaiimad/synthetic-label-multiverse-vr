@@ -205,3 +205,16 @@ None of them was opened.
 - A first workflow run with `stage = g0` checks the runner environment before Stage C is started.
 
 **Unchanged:** the hypotheses, estimands, tests, decision rules, generators, seeds, grids, M and the analysis code.
+
+**D6 addendum (2026-11-16, before any GitHub Stage C job existed).**
+- **What was dispatched.** The first workflow run (run #1, id 43888871250, 14:44 UTC, commit 386432d) was intended as the `g0` test. It was dispatched with the workflow's default input `stage = all`.
+- **What it therefore runs.** The complete pre-registered chain on the runners, exactly as the frozen plan specifies ("started once, manually, with stage `all` … no human decision in between"):
+  - G0, which passed;
+  - Stage X on the 13 generators;
+  - gates G1/G2 and M, computed automatically by `x_aggregate` (v15b);
+  - screening, S2, Stage C, and the C aggregate.
+- **What this changes in D6:**
+  - M is not entered by hand. It comes from the runners' own v15b.
+  - Stage X is computed a second time, in the runner environment. The local Stage X (D1) becomes an earlier execution of the same exploratory step, and the two are compared descriptively.
+  - Everything else in D6 is unchanged.
+- **If the runners' v15b differs from the local one** (gates or M), the chain follows the runners' value automatically, as the plan requires. The difference will be reported.

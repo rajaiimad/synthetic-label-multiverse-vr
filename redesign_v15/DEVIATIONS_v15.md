@@ -166,3 +166,42 @@ The code was committed before it was run on any study data, Stage X included. Be
 **Tests before the commit.** `--selftest` on synthetic data:
 - at c = 0, ψ_G(c), ψ_T(c) and ψ_N(c) equal the plan's ψ_G, ψ_T and ψ_N to within 10⁻⁶;
 - larger margins never increase ψ_T(c) or ψ_N(c).
+
+## D6 (2026-11-16): Stage C runs on GitHub-hosted runners, as the plan originally specified
+
+**When.** Recorded on 2026-11-16, before any Stage C detector result was inspected. Stage C had run locally (deviation D1) for about 2 hours on 2026-11-10 and was then paused at the authors' request.
+
+At the time of this record, the local Stage C outputs were:
+- the screening;
+- the S2 base models;
+- partial training of 3 of the 104 generators, with no summary or analysis.
+
+None of them was opened.
+
+**Why.**
+- Local execution needs about 40 more hours of uninterrupted computing on the first author's laptop, which is also needed for daily work. Every pause costs about 20 minutes of repeated work.
+- The workflow `v15` in the public repository runs exactly the pre-registered chain on GitHub-hosted runners, which is the execution environment the plan specified (Section 15). It runs up to 20 generators in parallel, and its run logs are public and timestamped.
+
+**What is done.**
+- **The whole of Stage C is re-run on GitHub, from the start.** The workflow is dispatched with `stage = C` and `M = 100`:
+  - the code gate G0;
+  - screening of draws k = 100, 101, … until 104 qualify (with the D4 cap);
+  - the S2 base models;
+  - all 104 generators (R3 on the first 20, S5 on the first 10 in draw order);
+  - the C aggregate.
+- **M = 100 is the v15b value** recorded on 2026-11-10 (`results_v15/analysis_X.json`, `V15B_STAGE_X_RECORD.md`). It is entered as the workflow input because the Stage X aggregate is not repeated. `v15/github_run.sh stagec` checks that the input equals the recorded value.
+- **Stage C is therefore computed in one environment:**
+  - GitHub `ubuntu-latest` runners (4 vCPU, 16 GB);
+  - the pinned versions: Python 3.13, NumPy 2.2.1, SciPy 1.15.0, scikit-learn 1.6.0, pandas 2.2.3 and PyTorch 2.11.0 (CPU wheel).
+- **The local partial Stage C outputs are kept unchanged but are not used.** That covers the local screening, the local S2 models and the 3 partial generators. They will be archived, labelled as superseded.
+- **Stage X is unchanged** (local, D1). Stage X and Stage C share no data, seeds or cohorts.
+- **The S6 script (D5) runs after download** on the downloaded C outputs, with the same code.
+
+**G0 on the runners.** On the runners G0 cannot run check G0.6 (it needs a corpus that is stored only locally), so G0.6 is skipped there. G0.6 passed locally on 2026-11-09 and 2026-11-10.
+
+**Tests before dispatch.**
+- A fresh clone of the repository (commit 7af1592) passed G0 (54/54).
+- In that clone, a smoke generator was trained end to end, with S5 and the summary step, on separate seeds (≥ 9,000,000). This shows that every module and model file the runners need is in the repository.
+- A first workflow run with `stage = g0` checks the runner environment before Stage C is started.
+
+**Unchanged:** the hypotheses, estimands, tests, decision rules, generators, seeds, grids, M and the analysis code.

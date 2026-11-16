@@ -9,3 +9,4 @@ rigorous_rerun/outputs_v2/models/*
 results_v15/
 *.npz
 *.npy
+results_v15_github/

@@ -27,6 +27,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 RES = ROOT / "results_v15"
 DETS = ("mpnn", "rawhgb")
+NAME = {"mpnn": "MPNN", "rawhgb": "Raw-HGB"}
 Z = 1.959963984540054
 C_U, C_A, INK, INK2, GRID = "#2a78d6", "#eb6834", "#0b0b0b", "#52514e", "#e4e3df"   # dataviz reference palette (light)
 
@@ -108,6 +109,19 @@ def derived(stage, an, gens, S):
     pv = np.array([[S[g]["prev"]["U"], S[g]["prev"]["A"]] for g in gens])
     d["ceiling_U_median"], d["ceiling_A_median"] = float(np.median(ce[:, 0])), float(np.median(ce[:, 1]))
     d["prev_U_median"], d["prev_A_median"] = float(np.median(pv[:, 0])), float(np.median(pv[:, 1]))
+    # plan 12.1: prior components as exploratory subgroups (descriptive counts only, no test)
+    lu = np.array([S[g]["frame"]["U"]["lam"] for g in gens]); la = np.array([S[g]["frame"]["A"]["lam"] for g in gens])
+    spec = [S[g]["meta"]["spec"] for g in gens]
+    groups = {**{f"agg_{a}": np.array([s.get("agg", "sum") == a for s in spec]) for a in ("sum", "max", "lse")},
+              "kernel_power": np.array(["dpow" in s for s in spec]), "kernel_cutoff": np.array(["dcut" in s for s in spec])}
+    d["subgroups"] = {k: {"n": int(m.sum()), "n_mpnn_wins_U": int((lu[m] > 0).sum()), "n_mpnn_wins_A": int((la[m] > 0).sum()),
+                          "median_lambda_U": float(np.median(lu[m])) if m.any() else None,
+                          "n_target_flips": int((np.sign(lu[m]) != np.sign(la[m])).sum())} for k, m in groups.items()}
+    d["psi_G_over_psi_N"] = an["frame"]["H1_U"]["psi_G"] / an["frame"]["psi_N_model"]["est"]
+    d["df"] = len(gens) - 1                                            # H2 t-test degrees of freedom
+    d["bound_pi_upper"] = 1 - an["frame"]["checks"]["bounds_share_rawhgb_sig"]   # plan 8.5: k-/M bounds 1 - pi_U
+    lo, hi = an["frame"]["H2"]["ci975"]                                # the H2 bound as a multiplicative change
+    d["h2_ratio_lo"], d["h2_ratio_hi"] = float(np.exp(lo)), float(np.exp(hi))
     sc = screening(gens) if stage == "C" else None
     if sc:
         d["screening"] = sc
@@ -120,15 +134,24 @@ def fmt(v, spec=".2f"):
         return "–"
     if spec == "p":
         return "< 0.001" if v < 0.001 else f"{v:.3f}"
+    if spec == "pe":                                                   # for running text: "p {{x:pe}}"
+        return "< 0.001" if v < 0.001 else f"= {v:.3f}"
     if spec in ("pct", "pct1"):
         n = 0 if spec == "pct" else 1
         return f"{100 * v:.{n + 1 if 0 < abs(v) < 0.01 else n}f}%"
+    if spec == "x1":                                                   # 2.4 × 10^−7^ (pandoc superscript)
+        e = int(np.floor(np.log10(abs(v)))) if v else 0
+        return f"{v / 10 ** e:.1f} × 10^{e}^".replace("-", "−")
+    if spec in ("r2", "r3"):                                          # for abstracts: 0.36–0.50, or −0.18 to 0.12
+        n = int(spec[-1])
+        sep = " to " if v[0] < 0 else "–"
+        return f"{v[0]:.{n}f}{sep}{v[1]:.{n}f}".replace("-", "−")
     if spec in ("ci2", "ci3"):
         n = int(spec[-1])
         return f"[{v[0]:.{n}f}, {v[1]:.{n}f}]".replace("-", "−")
     if isinstance(v, bool):
         return "yes" if v else "no"
-    if isinstance(v, int) and not spec.endswith("f"):
+    if isinstance(v, int) and spec in ("", "d"):
         return str(v)
     return format(v, spec).replace("-", "−")
 
@@ -184,7 +207,7 @@ def tables(stage, an, gens, S, d, tc, out):
     if s2:
         for t in ("U", "A"):
             for det in DETS:
-                rows.append([f"S2 median retention PR(shift)/PR(within), {det}, target {t}",
+                rows.append([f"S2 median retention PR(shift)/PR(within), {NAME[det]}, target {t}",
                              fmt(s2[t]["median_retention"][det]) + " " + fmt(s2[t]["median_retention_ci95"][det], "ci2")])
             rows.append([f"S2 share with the same winner as within-generator, target {t}",
                          fmt(s2[t]["share_same_winner"]) + " " + fmt(s2[t]["share_same_winner_ci95"], "ci2")])
@@ -208,7 +231,7 @@ def tables(stage, an, gens, S, d, tc, out):
             rows.append([f"S5 same winner with 32 configurations, target {t}", f"{v['n_same_winner']} of {s5['n']}"])
             rows.append([f"S5 mean change of λ, target {t}", fmt(v["mean_change_lambda"], ".3f") + " " + fmt(v["mean_change_lambda_ci95"], "ci3")])
             for det in DETS:
-                rows.append([f"S5 mean log gain in PR-AUC, {det}, target {t}",
+                rows.append([f"S5 mean log gain in PR-AUC, {NAME[det]}, target {t}",
                              fmt(v["mean_log_gain"][det], ".3f") + " " + fmt(v["mean_log_gain_ci95"][det], "ci3")])
             rows.append([f"S5 primary λ within 1.96 SE of zero (context), target {t}",
                          f"{v['n_primary_lambda_within_1p96_sd_of_zero']} of {s5['n']}"])
@@ -261,6 +284,13 @@ def tables(stage, an, gens, S, d, tc, out):
              f"{fmt(t['share_unsafe_attack_caused_max'], 'pct1')}]"]]
     write_table(out, "T4_label_classes", ["Class", "Frames", "Share"], rows,
                 f"Table 3. Test frames by label class, pooled over the {d['M']} generators (Stage {stage}).")
+    lab = {"agg_sum": "Aggregation: sum", "agg_max": "Aggregation: maximum", "agg_lse": "Aggregation: soft maximum",
+           "kernel_power": "Distance kernel: power law", "kernel_cutoff": "Distance kernel: cut-off"}
+    rows = [[lab[k], v["n"], v["n_mpnn_wins_U"], v["n_mpnn_wins_A"], fmt(v["median_lambda_U"], ".3f"), v["n_target_flips"]]
+            for k, v in d["subgroups"].items()]
+    write_table(out, "T6_subgroups", ["Prior component", "Generators", "MPNN wins (U)", "MPNN wins (A)", "Median λ^U",
+                                      "Target flips"], rows,
+                f"Table S3. Exploratory subgroups by prior component (Stage {stage}; descriptive, no test).")
     if "screening" in d:
         sc = d["screening"]
         rows = [["Draws screened (k = {}–{})".format(sc["k_first"], sc["k_last"]), sc["n_draws"]],
@@ -296,14 +326,26 @@ def figures(stage, an, gens, S, d, out):
     lu = np.array([S[x]["frame"]["U"]["lam"] for x in gens]); su = Z * np.sqrt([S[x]["frame"]["U"]["v_two"] for x in gens])
     la = np.array([S[x]["frame"]["A"]["lam"] for x in gens]); sa = Z * np.sqrt([S[x]["frame"]["A"]["v_two"] for x in gens])
     M = len(gens)
+    # Display range: heavy-tailed lambda (generators with very few A positives) would compress every other generator.
+    # Values beyond +-LIM are drawn at the edge as triangles and counted in the panel; exact values are in Table S12.
+    LIM = 2.5 if np.abs(np.r_[lu, la]).max() > 2.5 else max(1.08 * np.abs(np.r_[lu, la]).max(), 0.1)
     # F1 forest plot: lambda^U and lambda^A per generator with within-generator 95% intervals, sorted by lambda^U
     o = np.argsort(lu)
     fig, axs = plt.subplots(1, 2, figsize=(7, max(2.5, 0.09 * M + 0.8)), sharey=True)
     for ax, lam, se, c, t in ((axs[0], lu, su, C_U, "U (all unsafe)"), (axs[1], la, sa, C_A, "A (attack-caused)")):
         y = np.arange(M)
         ax.axvline(0, color=INK2, lw=0.6)
-        ax.hlines(y, (lam - se)[o], (lam + se)[o], color=c, lw=0.8, alpha=0.6)
-        ax.plot(lam[o], y, "o", ms=2.6, color=c, mec="white", mew=0.4)
+        ax.hlines(y, np.clip(lam - se, -LIM, LIM)[o], np.clip(lam + se, -LIM, LIM)[o], color=c, lw=0.8, alpha=0.6)
+        inside = np.abs(lam[o]) <= LIM
+        ax.plot(lam[o][inside], y[inside], "o", ms=2.6, color=c, mec="white", mew=0.4)
+        for side, mk in ((-1, "<"), (1, ">")):
+            off = side * lam[o] > LIM
+            ax.plot(np.full(off.sum(), side * LIM), y[off], mk, ms=3.2, color=c, mec="white", mew=0.4)
+        n_off = int((np.abs(lam) > LIM).sum())
+        if n_off:
+            ax.text(0.0, -0.06, f"{n_off} estimate(s) beyond ±{LIM:g} shown at the edge", transform=ax.transAxes,
+                    ha="left", va="top", color=INK2, fontsize=6)
+        ax.set_xlim(-LIM * 1.04, LIM * 1.04)
         mu, tau = g(an, f"frame.H1_{t[0]}.mu"), g(an, f"frame.H1_{t[0]}.tau")
         ax.axvspan(mu - tau, mu + tau, color=GRID, zorder=0, lw=0)
         ax.axvline(mu, color=INK, lw=0.8, ls="--")
@@ -315,11 +357,17 @@ def figures(stage, an, gens, S, d, out):
     save(fig, out, "F1_forest"); plt.close(fig)
     # F2 lambda^U vs lambda^A: off-diagonal quadrants are generators where the target choice changes the winner
     fig, ax = plt.subplots(figsize=(3.5, 3.4))
-    lim = 1.08 * max(np.abs(np.r_[lu, la]).max(), 0.1)
+    lim = LIM * 1.04
     ax.axhline(0, color=INK2, lw=0.6); ax.axvline(0, color=INK2, lw=0.6)
     ax.plot([-lim, lim], [-lim, lim], color=GRID, lw=0.8, zorder=0)
-    ax.errorbar(lu, la, xerr=su, yerr=sa, fmt="none", ecolor=GRID, elinewidth=0.6, zorder=1)
-    ax.plot(lu, la, "o", ms=3.2, color=C_U, mec="white", mew=0.4, zorder=2)
+    inside = (np.abs(lu) <= LIM) & (np.abs(la) <= LIM)
+    ax.errorbar(lu[inside], la[inside], xerr=su[inside], yerr=sa[inside], fmt="none", ecolor=GRID, elinewidth=0.6, zorder=1)
+    ax.plot(lu[inside], la[inside], "o", ms=3.2, color=C_U, mec="white", mew=0.4, zorder=2)
+    ax.plot(np.clip(lu[~inside], -LIM, LIM), np.clip(la[~inside], -LIM, LIM), "D", ms=3.2, color=C_U, mec="white", mew=0.4,
+            zorder=2)
+    if (~inside).any():
+        ax.text(0.5, -0.2, f"Diamonds: {int((~inside).sum())} generator(s) beyond ±{LIM:g}, drawn at the edge",
+                transform=ax.transAxes, ha="center", va="top", fontsize=6, color=INK2)
     q = d["frame"]
     for (x, y, ha, va, k) in ((0.98, 0.98, "right", "top", "n_mpnn_both"), (0.02, 0.02, "left", "bottom", "n_rawhgb_both"),
                               (0.98, 0.02, "right", "bottom", "n_mpnn_U_only"), (0.02, 0.98, "left", "top", "n_mpnn_A_only")):
@@ -331,7 +379,12 @@ def figures(stage, an, gens, S, d, out):
     # F3 distribution of delta with the H2 estimate and its 97.5% t-interval
     dl_ = la - lu
     fig, ax = plt.subplots(figsize=(3.5, 2.2))
-    ax.hist(dl_, bins=min(30, max(8, M // 4)), color=C_A, alpha=0.85, edgecolor="white", lw=0.4)
+    DL = 1.5 if np.abs(dl_).max() > 1.5 else None                      # display range, as LIM above
+    ax.hist(np.clip(dl_, -DL, DL) if DL else dl_, bins=np.linspace(-DL, DL, 31) if DL else min(30, max(8, M // 4)),
+            color=C_A, alpha=0.85, edgecolor="white", lw=0.4)
+    if DL:
+        ax.text(0.0, -0.3, f"{int((dl_ < -DL).sum())} value(s) below −{DL:g} and {int((dl_ > DL).sum())} above {DL:g} "
+                "are counted in the edge bins", transform=ax.transAxes, ha="left", va="top", fontsize=6, color=INK2)
     ax.axvline(0, color=INK2, lw=0.6)
     h2 = an["frame"]["H2"]
     ax.axvline(h2["mean_delta"], color=INK, lw=0.9, ls="--")
@@ -367,7 +420,7 @@ def figures(stage, an, gens, S, d, out):
 
 
 # =============================================================== text rendering
-MACRO = re.compile(r"\{\{\s*([A-Za-z0-9_.\-]+)(?::([A-Za-z0-9.]+))?\s*\}\}")
+MACRO = re.compile(r"\{\{\s*([A-Za-z0-9_.\-]+)(?::([A-Za-z0-9.,]+))?\s*\}\}")
 NUM = re.compile(r"(?<![\w.{])[-−]?\d+(?:\.\d+)?%?(?![\w}])")
 
 
@@ -397,6 +450,14 @@ def build(stage):
     s6f = RES / f"s6_meaningful_gap_{stage}.json"                     # deviation D5 (secondary outcome S6), if run
     if s6f.exists():
         an = {**an, "S6": json.loads(s6f.read_text())}
+        o = an["S6"]["1.10"]["observed"]["U"]                          # descriptive analogue of psi_G(c), primary margin
+        d["s6_empirical_psiG_110"] = 2 * o["n_mpnn"] * o["n_rawhgb"] / len(gens) ** 2
+    dgf = RES / f"psi_T_diagnostics_{stage}.json"                     # post-hoc diagnostic (exploratory), if run
+    if dgf.exists():
+        an = {**an, "psiT_diag": json.loads(dgf.read_text())}
+    imf = RES / "github_import_report.json"                             # deviation D6: verification of the runner outputs
+    if stage == "C" and imf.exists():
+        an = {**an, "import": json.loads(imf.read_text())}
     numbers = {**flat({k: v for k, v in an.items() if k != "generators"}), **flat(d, "derived")}
     (out / "numbers.json").write_text(json.dumps(numbers, indent=1, default=float, ensure_ascii=False), encoding="utf-8")
     tables(stage, an, gens, S, d, tc, out / "tables")

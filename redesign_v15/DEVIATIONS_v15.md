@@ -218,3 +218,12 @@ None of them was opened.
   - Stage X is computed a second time, in the runner environment. The local Stage X (D1) becomes an earlier execution of the same exploratory step, and the two are compared descriptively.
   - Everything else in D6 is unchanged.
 - **If the runners' v15b differs from the local one** (gates or M), the chain follows the runners' value automatically, as the plan requires. The difference will be reported.
+
+## Post-hoc additions after the Stage C results (2026-11-17)
+
+These are not deviations from the plan: no pre-registered estimate, test, decision rule or datum changes. They are recorded here because they were added after the Stage C results were available, and the paper labels them accordingly.
+
+- **Verification of the runner outputs** (`v15/import_github_run.py`). Copies the downloaded artifacts of run 43888871250 into the layout that the analysis code reads (the downloads stay untouched), checks completeness, provenance (one commit), the R3 and S5 subsets and the screening, re-runs the pre-registered aggregate locally and compares every number with the runner's `analysis_C.json`, and compares the runner's Stage X with the local Stage X.
+- **Post-hoc diagnostic of the model-based ψ_T** (`v15/psi_T_diagnostics.py`). The model-based ψ_T (plan 8.3) was much larger than the observed share of generators with opposite signs. The diagnostic applies the leave-one-generator-out influence check of plan 8.5 to ψ_T, reports the implied between-generator correlation, the bootstrap interval of the observed share (same resamples as the aggregate), and the generators with the largest influence together with their number of A-positive test frames. It is exploratory and labelled post hoc in the paper.
+- **Exploratory subgroups by prior component** (plan Section 12, item 1: "Prior components (aggregation type, distance kernel) are reported as exploratory subgroups"). Implemented in `v15/report_v15.py` as descriptive counts (Table S16); no test.
+- **Figure display range** (`v15/report_v15.py`, presentation only). Because a few generators have extreme λ, the forest plot and the scatter plot show λ within ±2.5 and the δ histogram within ±1.5; values outside are drawn at the edge and counted on the figure, and the exact values are in the per-generator tables.

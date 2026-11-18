@@ -227,3 +227,22 @@ These are not deviations from the plan: no pre-registered estimate, test, decisi
 - **Post-hoc diagnostic of the model-based ψ_T** (`v15/psi_T_diagnostics.py`). The model-based ψ_T (plan 8.3) was much larger than the observed share of generators with opposite signs. The diagnostic applies the leave-one-generator-out influence check of plan 8.5 to ψ_T, reports the implied between-generator correlation, the bootstrap interval of the observed share (same resamples as the aggregate), and the generators with the largest influence together with their number of A-positive test frames. It is exploratory and labelled post hoc in the paper.
 - **Exploratory subgroups by prior component** (plan Section 12, item 1: "Prior components (aggregation type, distance kernel) are reported as exploratory subgroups"). Implemented in `v15/report_v15.py` as descriptive counts (Table S16); no test.
 - **Figure display range** (`v15/report_v15.py`, presentation only). Because a few generators have extreme λ, the forest plot and the scatter plot show λ within ±2.5 and the δ histogram within ±1.5; values outside are drawn at the edge and counted on the figure, and the exact values are in the per-generator tables.
+
+## Post-hoc addition after the Stage C results (2026-11-18)
+
+This is not a deviation from the plan: no pre-registered estimate, test, decision rule or datum changes. It was added after the Stage C results were available, at the authors' request, and the paper labels it post hoc.
+
+- **Kernel sensitivity of ψ_G** (`v15/kernel_sensitivity.py`, output `results_v15/kernel_sensitivity_C.json`; Tables S17 and S18).
+  - **Why.** The exploratory subgroups (plan Section 12, item 1) showed that the distance-kernel family nearly decides the winner. The prior draws a power-law kernel or a hard cut-off with probability 1/2 each, so ψ_G averages over the two families.
+  - **What it computes.**
+    - The pre-registered H1 machinery (DerSimonian–Laird fit, π = Φ(μ/τ), ψ_G = 2π(1 − π), percentile bootstrap with B = 4000) and the model-based ψ_N, within each family. On all M generators, the same functions reproduce the confirmatory ψ_G, its interval and ψ_N exactly; the script asserts this.
+    - The ψ_G implied by a REML fit, because of the heavy tails.
+    - The number of generators on which the family's less frequent winner won clearly: beyond 1.96 bootstrap SE and beyond the 10% margin of S6.
+    - The split-half noise share within each family.
+    - The ψ_G implied by a prior with a share w of cut-off kernels: P(w) = wπ_cut + (1 − w)π_pow, ψ_G(w) = 2P(w)(1 − P(w)).
+    - The kernel family of every screened draw, regenerated from the prior seed.
+  - **Result (target U).**
+    - **Clear reversals.** Within a family, the less frequent winner won clearly on only 3 of the 100 generators.
+    - **Within-family ψ_G.** DL estimates were 0.10 (cut-off) and 0.01 (power law), close to the within-family ψ_N of 0.07 and 0.02. REML estimates were larger: 0.30 and 0.19.
+    - **Implied ψ_G by prior mix.** It is close to 0.5 for a near-even mix of the two families, and between 0.01 and 0.30 for a prior with a single family.
+  - **Result (target A).** Under A, the cut-off family keeps a generator effect beyond noise: ψ_G 0.30 against ψ_N 0.09.

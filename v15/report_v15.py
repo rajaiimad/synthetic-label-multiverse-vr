@@ -291,6 +291,34 @@ def tables(stage, an, gens, S, d, tc, out):
     write_table(out, "T6_subgroups", ["Prior component", "Generators", "MPNN wins (U)", "MPNN wins (A)", "Median λ^U",
                                       "Target flips"], rows,
                 f"Table S3. Exploratory subgroups by prior component (Stage {stage}; descriptive, no test).")
+    if "kernel" in an:                                                  # post-hoc kernel sensitivity (exploratory)
+        K = an["kernel"]["targets"]
+        fam = {"all": "Both (as analysed)", "cutoff": "Cut-off only", "power": "Power law only"}
+        rows = []
+        for t in ("U", "A"):
+            for f in ("all", "cutoff", "power"):
+                x = K[t][f]
+                sh = (x.get("split_half_share_differs") if f != "all"
+                      else g(an, f"frame.psi_N_split_half_{t}.share_differs"))
+                rows.append([t, fam[f], x["n"], x["n_mpnn_wins"],
+                             "–" if f == "all" else f"{x['n_minority_wins']} ({x['n_minority_wins_beyond_both']})",
+                             fmt(x["psi_G"], ".2f") + " " + fmt(x["psi_G_ci95"], "ci2"), fmt(x["reml_psi_G"], ".2f"),
+                             fmt(x["psi_N_model"], ".2f") + " " + fmt(x["psi_N_model_ci95"], "ci2"), fmt(sh, ".2f")])
+        write_table(out, "T7_kernel_families", ["Target", "Kernel family", "Generators", "MPNN wins",
+                                                "Wins of the less frequent winner (clear)", "ψ_G, DL [95% CI]",
+                                                "ψ_G, REML", "ψ_N, model [95% CI]", "ψ_N, split-half"], rows,
+                    f"Table S4. Post-hoc kernel sensitivity: generator-flip probability within each distance-kernel family "
+                    f"(Stage {stage}).")
+        lab_w = {0.5: " (prior)", round(an["kernel"]["n_cutoff"] / an["kernel"]["M"], 6): " (analysed set)"}
+        rows = []
+        for mu_, ma in zip(K["U"]["mixture"], K["A"]["mixture"]):
+            w = mu_["w_cutoff"]
+            rows.append([f"{w:.2f}{lab_w.get(round(w, 6), '')}",
+                         fmt(mu_["psi_G"], ".2f") + " " + fmt(mu_["psi_G_ci95"], "ci2"), fmt(mu_["reml_psi_G"], ".2f"),
+                         fmt(ma["psi_G"], ".2f") + " " + fmt(ma["psi_G_ci95"], "ci2"), fmt(ma["reml_psi_G"], ".2f")])
+        write_table(out, "T8_kernel_mixture", ["Share of cut-off kernels in the prior", "ψ_G (U), DL [95% CI]",
+                                               "ψ_G (U), REML", "ψ_G (A), DL [95% CI]", "ψ_G (A), REML"], rows,
+                    f"Table S5. Post-hoc: ψ_G implied for priors with other shares of the two kernel families (Stage {stage}).")
     if "screening" in d:
         sc = d["screening"]
         rows = [["Draws screened (k = {}–{})".format(sc["k_first"], sc["k_last"]), sc["n_draws"]],
@@ -455,7 +483,10 @@ def build(stage):
     dgf = RES / f"psi_T_diagnostics_{stage}.json"                     # post-hoc diagnostic (exploratory), if run
     if dgf.exists():
         an = {**an, "psiT_diag": json.loads(dgf.read_text())}
-    imf = RES / "github_import_report.json"                             # deviation D6: verification of the runner outputs
+    ksf = RES / f"kernel_sensitivity_{stage}.json"                    # post-hoc kernel sensitivity (exploratory), if run
+    if ksf.exists():
+        an = {**an, "kernel": json.loads(ksf.read_text())}
+    imf =RES / "github_import_report.json"                             # deviation D6: verification of the runner outputs
     if stage == "C" and imf.exists():
         an = {**an, "import": json.loads(imf.read_text())}
     numbers = {**flat({k: v for k, v in an.items() if k != "generators"}), **flat(d, "derived")}

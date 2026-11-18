@@ -125,6 +125,18 @@ def derived(stage, an, gens, S):
     sc = screening(gens) if stage == "C" else None
     if sc:
         d["screening"] = sc
+    # post hoc (model adequacy): how the inverse-variance weights of the DL fit are spread over the generators
+    from scipy import stats
+    if len(gens) <= 20:                                                # Stage X: too few generators for this description
+        return d, tc
+    vu = np.array([S[g]["frame"]["U"]["v_two"] for g in gens])
+    w = 1.0 / vu
+    top = np.argsort(-w)[:20]
+    rest = np.setdiff1d(np.arange(len(gens)), top)
+    d["dl_weights"] = {"n_top": 20, "weight_share_top": float(w[top].sum() / w.sum()),
+                       "median_abs_lambda_top": float(np.median(np.abs(lu[top]))),
+                       "median_abs_lambda_rest": float(np.median(np.abs(lu[rest]))),
+                       "spearman_v_abs_lambda": float(stats.spearmanr(vu, np.abs(lu)).statistic)}
     return d, tc
 
 
@@ -172,6 +184,85 @@ def g(an, path, default=None):
     return o
 
 
+def tables_adequacy(an, out):
+    """Tables of v15/model_adequacy.py (post hoc). Pre-registered values are shown unchanged beside the checks."""
+    A = an["adequacy"]
+    a, b, c, dd, e, f, g, h = (A[k] for k in ("a_sign_shares", "b_target_flips", "c_S6", "d_between_generator_spread",
+                                              "e_heavy_tails", "f_episode_level", "g_stage_x_cross_platform", "h_t_random_effects_U"))
+    M = A["M"]
+    pv = lambda est, iv: fmt(est, ".2f") + " " + fmt(iv, "ci2")                                  # noqa: E731
+    cnt = lambda k, iv: f"{k}/{M} {fmt(iv, 'ci2')}"                                            # noqa: E731
+    t4 = h["t"]["4"]
+    rows = [["π_U (share of generators on which the MPNN wins, U)", pv(a["U"]["preregistered_pi_DL"], a["U"]["preregistered_pi_DL_ci95"]),
+             "Observed: " + cnt(a["U"]["n_mpnn_wins"], a["U"]["share_cp95"]) + f"; REML {fmt(a['U']['pi_REML'], '.2f')}; t (ν = 4) "
+             + pv(t4["pi"], t4["pi_ci95"])],
+            ["π_A (the same under A)", pv(a["A"]["preregistered_pi_DL"], a["A"]["preregistered_pi_DL_ci95"]),
+             "Observed: " + cnt(a["A"]["n_mpnn_wins"], a["A"]["share_cp95"]) + f"; REML {fmt(a['A']['pi_REML'], '.2f')}"],
+            ["ψ_G (generator-flip probability, U)", pv(a["U"]["preregistered_psi_G_DL"], a["U"]["preregistered_psi_G_DL_ci95"]),
+             "Observed 2p(1 − p): " + pv(a["U"]["observed_psi_G"], a["U"]["observed_psi_G_boot95"]) + f"; t (ν = 4) {fmt(t4['psi_G'], '.2f')}"],
+            ["Target-flip probability", "ψ_T = " + pv(b["preregistered_psi_T"], b["preregistered_psi_T_ci95"]),
+             "Observed target flips: " + cnt(b["n_target_flips"], b["target_flips_cp95"])],
+            ["Noise-flip probability", f"ψ_N = {fmt(b['preregistered_psi_N_model'], '.2f')}",
+             "Split-half: U " + cnt(b["split_half_U"]["n"], b["split_half_U"]["cp95"]) + ", A " + cnt(b["split_half_A"]["n"], b["split_half_A"]["cp95"])],
+            ["Target flips minus noise", "ψ_T − ψ_N = " + pv(b["preregistered_psi_T_minus_psi_N"]["est"], b["preregistered_psi_T_minus_psi_N"]["ci95"]),
+             "Observed minus split-half: U " + pv(b["flips_minus_split_half_U"]["est"], b["flips_minus_split_half_U"]["paired_boot95"])
+             + ", A " + pv(b["flips_minus_split_half_A"]["est"], b["flips_minus_split_half_A"]["paired_boot95"])],
+            ["Between-generator SD of λ^U", f"τ (DL) = {dd['U']['DL']['tau']:.3f}", f"τ (REML) = {dd['U']['REML']['tau']:.3f}"],
+            ["H1 decision across τ = 0.10–0.60 (π with τ fixed)", "–",
+             "Same for every τ: " + ("yes" if dd["U"]["H1_decision_same_for_every_tau"] and dd["A"]["H1_decision_same_for_every_tau"] else "no")]]
+    write_table(out, "T9_adequacy_overview", ["Quantity", "Pre-registered (model-based)", "Post hoc (observed or alternative model)"],
+                rows, "Model adequacy: pre-registered model-based estimates beside model-free checks.")
+    rows = []
+    for m, x in c["margins"].items():
+        rows.append([f"{float(m) - 1:.0%}", pv(x["observed_psi_G_c"], x["observed_psi_G_c_boot95"]), fmt(x["preregistered_model_psi_G_c"], ".2f"),
+                     fmt(x["REML_based_psi_G_c"], ".2f"), cnt(x["observed_meaningful_target_flips"], x["observed_meaningful_target_flips_cp95"]),
+                     fmt(x["preregistered_model_psi_T_c"], ".2f"), fmt(x["preregistered_model_psi_N_c"], ".2f")])
+    write_table(out, "T10_adequacy_S6", ["Margin", "Observed ψ_G(c) [boot]", "Model ψ_G(c), DL", "ψ_G(c), REML-based",
+                                         "Observed meaningful target flips", "Model ψ_T(c), DL", "Model ψ_N(c), DL"], rows,
+                "S6 at each margin: observed against model.")
+    rows = [[f"{x['tau']:.2f}", fmt(x["mu_at_tau"], ".3f"), pv(x["pi"], x["pi_ci95"]), fmt(x["psi_G"], ".2f"),
+             "yes" if x["pi_ci95_inside_0.10_0.90"] else "no"] for x in dd["U"]["tau_grid"]]
+    write_table(out, "T11_adequacy_tau", ["τ (fixed)", "μ at τ", "π_U [95%]", "ψ_G", "Interval inside (0.10, 0.90)"], rows,
+                "π_U with the between-generator SD held fixed.")
+    rows = []
+    for t in "UA":
+        x = e[t]
+        rows += [[t, y["generator"], fmt(y["lambda"], ".2f"), f"{y['bootstrap_variance']:.3f}", y["kernel"], y["aggregation"],
+                  y["n_A_positive_test_frames"]] for y in x["top5_abs_lambda"]]
+    write_table(out, "T12_adequacy_tails", ["Target", "Generator", "λ", "Bootstrap variance", "Kernel", "Aggregation",
+                                            "A-positive test frames"], rows,
+                f"Heavy tails: the five largest |λ| per target (excess kurtosis {e['U']['excess_kurtosis']:.1f} under U and "
+                f"{e['A']['excess_kurtosis']:.1f} under A).")
+    rows = [[{"log": "Log ratio (pre-registered)", "raw": "Raw difference"}[k], fmt(f[k]["mean"], ".3f"), fmt(f[k]["t_p"], "p"),
+             fmt(f[k]["wilcoxon_p"], "p"), f"{f[k]['n_negative']} / {f[k]['n_positive']}", fmt(f[k]["sign_test_p"], "p"),
+             fmt(f[k]["loo_t_p_range"], "ci3")] for k in ("log", "raw")]
+    write_table(out, "T13_adequacy_episode", ["Scale of δ", "Mean δ", "t-test p", "Wilcoxon p", "Negative / positive",
+                                              "Sign-test p", "Leave-one-out range of t-test p"], rows,
+                "Episode-level target shift (S1) on two scales.")
+    rows = [[y["generator"], fmt(y["delta_log"], ".2f"), fmt(y["delta_raw"], ".3f"), fmt(y["mean_episode_pr_auc"], ".2f"),
+             y["n_A_positive_test_frames"], fmt(y["t_p_without"], ".4f")] for y in f["most_negative_log_delta"]]
+    write_table(out, "T14_adequacy_episode_top", ["Generator", "δ, log ratio", "δ, raw", "Mean episode PR-AUC",
+                                                  "A-positive test frames", "t-test p without it"], rows,
+                "The five most negative episode-level δ on the log scale.")
+    rows = []
+    for r in g["per_generator"]:
+        rows.append([r["generator"], fmt(r["frame.U.lam_laptop"], ".3f"), fmt(r["frame.U.lam_github"], ".3f"),
+                     fmt(r["frame.A.lam_laptop"], ".3f"), fmt(r["frame.A.lam_github"], ".3f"),
+                     fmt(max(r[f"{m}.{t}.lam_diff_in_SE"] for m in ("frame", "episode") for t in "UA"), ".2f"),
+                     "/".join("yes" if r[f"frame.{t}.same_winner"] else "no" for t in "UA"),
+                     "/".join("yes" if r[f"episode.{t}.same_winner"] else "no" for t in "UA")])
+    write_table(out, "T15_adequacy_stagex", ["Generator", "λ^U laptop", "λ^U GitHub", "λ^A laptop", "λ^A GitHub",
+                                             "Largest difference in λ (in SE)", "Same frame winner (U/A)", "Same episode winner (U/A)"],
+                rows, "Stage X on the GitHub runners against the laptop.")
+    rows = [["Normal (ML)", fmt(h["normal_ML"]["mu"], ".3f"), fmt(h["normal_ML"]["tau"], ".3f"), fmt(h["normal_ML"]["pi"], ".2f"),
+             fmt(h["normal_ML"]["psi_G"], ".2f")]]
+    rows += [[f"t, ν = {nu}", fmt(x["mu"], ".3f"), fmt(x["tau"], ".3f"),
+              fmt(x["pi"], ".2f") + (" " + fmt(x["pi_ci95"], "ci2") if "pi_ci95" in x else ""), fmt(x["psi_G"], ".2f")]
+             for nu, x in h["t"].items()]
+    write_table(out, "T16_adequacy_t", ["Random-effects distribution", "μ", "τ (scale)", "π_U", "ψ_G"], rows,
+                "Side analysis: random effects with t-distributed generator effects, target U.")
+
+
 def tables(stage, an, gens, S, d, tc, out):
     # T1: primary and key secondary estimands, frame level (primary) and episode level (S1)
     rows = []
@@ -183,7 +274,7 @@ def tables(stage, an, gens, S, d, tc, out):
             ("μ_δ (mean target shift, log scale), 97.5% t-interval", "H2.mean_delta", "H2.ci975", ".3f"),
             ("exp(μ_δ) (multiplicative change of the PR-AUC ratio)", "H2.ratio_change", None, ".3f"),
             ("H2 t-test p (α = 0.025)", "H2.p", None, "p"), ("H2 decision", "H2.reject", None, ""),
-            ("Standardised μ_δ / SD(δ)", "H2.standardised", None, ".2f"), ("Wilcoxon p (robustness)", "H2.wilcoxon_p", None, "p"),
+            ("Standardised μ_δ / SD(δ)", "H2.standardised", None, ".2f"), ("Wilcoxon p (H2 without the normality assumption)", "H2.wilcoxon_p", None, "p"),
             ("μ_δ on the raw PR-AUC difference scale", "H2.raw_scale.mean_delta", "H2.raw_scale.ci95", ".3f"),
             ("ψ_T (target-flip probability)", "psi_T.est", "psi_T.ci95", ".2f"),
             ("Observed share with opposite signs of λ^U and λ^A", "psi_T.naive_share_sign_differs", None, ".2f"),
@@ -319,6 +410,8 @@ def tables(stage, an, gens, S, d, tc, out):
         write_table(out, "T8_kernel_mixture", ["Share of cut-off kernels in the prior", "ψ_G (U), DL [95% CI]",
                                                "ψ_G (U), REML", "ψ_G (A), DL [95% CI]", "ψ_G (A), REML"], rows,
                     f"Table S5. Post-hoc: ψ_G implied for priors with other shares of the two kernel families (Stage {stage}).")
+    if "adequacy" in an:                                                # post-hoc model-adequacy checks (Task 1b)
+        tables_adequacy(an, out)
     if "screening" in d:
         sc = d["screening"]
         rows = [["Draws screened (k = {}–{})".format(sc["k_first"], sc["k_last"]), sc["n_draws"]],
@@ -486,6 +579,19 @@ def build(stage):
     ksf = RES / f"kernel_sensitivity_{stage}.json"                    # post-hoc kernel sensitivity (exploratory), if run
     if ksf.exists():
         an = {**an, "kernel": json.loads(ksf.read_text())}
+    adf = RES / f"model_adequacy_{stage}.json"                        # post-hoc model-adequacy checks, if run
+    if adf.exists():
+        ad = json.loads(adf.read_text())
+        ad["f_episode_level"] = {k: v for k, v in ad["f_episode_level"].items() if k != "per_generator"}   # in the JSON only
+        wc = ad["g_stage_x_cross_platform"]["winner_changes"]
+        ad["g_stage_x_cross_platform"]["n_winner_changes"] = len(wc)
+        if wc:
+            ad["g_stage_x_cross_platform"]["max_abs_lambda_at_winner_change"] = max(max(abs(x["lam_laptop"]), abs(x["lam_github"])) for x in wc)
+            ad["g_stage_x_cross_platform"]["max_diff_in_SE_at_winner_change"] = max(x["diff_in_SE"] for x in wc)
+        mx = ad["g_stage_x_cross_platform"]["max_abs_diff"]
+        ad["g_stage_x_cross_platform"]["max_lam_diff_in_SE"] = max(v for k, v in mx.items() if k.endswith("lam_diff_in_SE"))
+        ad["g_stage_x_cross_platform"]["max_pr_mpnn_diff_frame"] = max(mx["frame.U.pr_mpnn"], mx["frame.A.pr_mpnn"])
+        an = {**an, "adequacy": ad}
     imf =RES / "github_import_report.json"                             # deviation D6: verification of the runner outputs
     if stage == "C" and imf.exists():
         an = {**an, "import": json.loads(imf.read_text())}

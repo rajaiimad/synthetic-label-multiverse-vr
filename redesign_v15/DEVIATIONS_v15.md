@@ -246,3 +246,23 @@ This is not a deviation from the plan: no pre-registered estimate, test, decisio
     - **Within-family ψ_G.** DL estimates were 0.10 (cut-off) and 0.01 (power law), close to the within-family ψ_N of 0.07 and 0.02. REML estimates were larger: 0.30 and 0.19.
     - **Implied ψ_G by prior mix.** It is close to 0.5 for a near-even mix of the two families, and between 0.01 and 0.30 for a prior with a single family.
   - **Result (target A).** Under A, the cut-off family keeps a generator effect beyond noise: ψ_G 0.30 against ψ_N 0.09.
+
+## Post-hoc model-adequacy checks (2026-11-18)
+
+This is not a deviation from the plan. The authors asked for it after the Stage C results.
+
+- **What it is.** `v15/model_adequacy.py` writes `results_v15/model_adequacy_C.json`, a short summary in `model_adequacy_C.md`, and Q-Q plots in `model_adequacy_C_qq.png`. It uses existing outputs only.
+- **Rules followed.**
+  - No pre-registered model, estimator, test, generator set or threshold changes.
+  - No generator is dropped or down-weighted in any reported estimate.
+  - Every pre-registered value is read from the analysis files and shown unchanged beside the checks.
+  - The script asserts that it reproduces the pre-registered values it reads.
+- **Checks.**
+  - a. Observed sign shares with exact intervals, and the observed 2p(1 − p).
+  - b. Observed target flips against the split-half noise shares, with a paired bootstrap of the difference.
+  - c. S6 at each margin: observed counts against the pre-registered DL-based model, and a REML-based value.
+  - d. DL against REML, and π across τ = 0.10–0.60.
+  - e. Kurtosis, skewness, Shapiro–Wilk and Q-Q plots of λ^U and λ^A, and the 5 largest |λ|.
+  - f. Episode level: log scale against raw scale, sign tests, and which generators drive the log-scale test.
+  - g. Stage X per generator: GitHub against the laptop.
+  - h. A side analysis with t-distributed random effects (ν = 3, 4, 5, 10). It down-weights extreme generators by construction, so it never replaces the pre-registered estimate.

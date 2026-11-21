@@ -184,6 +184,48 @@ def g(an, path, default=None):
     return o
 
 
+def tables_mechanism(an, out):
+    """Tables of v15/mechanism_checks.py (POST HOC): the kernel effect, S2 by family, clear wins."""
+    X = an["mech"]
+    fam = {"all": "Both", "cutoff": "Cut-off", "power": "Power law"}
+    rows = []
+    for t in "UA":
+        for f in ("all", "cutoff", "power"):
+            x = X["a_S2_by_family"][t][f]
+            rows.append([t, fam[f], x["n"], f"{x['n_same_winner']} {fmt(x['share_same_winner_cp95'], 'ci2')}",
+                         x["n_mpnn_wins_within"], x["n_mpnn_wins_S2"]])
+    write_table(out, "T17_mech_S2", ["Target", "Kernel family", "Generators", "Same winner as within-generator [exact 95%]",
+                                     "MPNN wins, within-generator", "MPNN wins, trained on v2 only (S2)"], rows,
+                "Post hoc: S2 by kernel family.")
+    lab = {"power_lambda_vs_p": "Power law: λ against exponent p", "power_lambda_vs_abs_p_minus_1": "Power law: λ against the distance of p from 1",
+           "cutoff_lambda_vs_c": "Cut-off: λ against radius c (m)"}
+    rows = [[t, lab[k], x["n"], fmt(x["rho"], ".2f") + " " + fmt(x["boot95"], "ci2")]
+            for t in "UA" for k, x in X["b_kernel_parameter"][t].items()]
+    write_table(out, "T18_mech_param", ["Target", "Relation", "Generators", "Spearman ρ [bootstrap 95%]"], rows,
+                "Post hoc: λ against the kernel parameter within each family.")
+    rows = []
+    for nm, k, unit in (("Power law", "U_power_by_p_tercile", "p"), ("Cut-off", "U_cutoff_by_c_tercile", "c")):
+        for x in X["b_kernel_parameter"][k]:
+            rows.append([nm, f"{unit} {x['range'][0]:.2f}–{x['range'][1]:.2f}", x["n"], fmt(x["median_lambda"], ".3f"), x["n_mpnn_wins"]])
+    write_table(out, "T19_mech_terciles", ["Kernel family", "Tercile of the parameter", "Generators", "Median λ^U", "MPNN wins (U)"],
+                rows, "Post hoc: λ^U by tercile of the kernel parameter.")
+    rows = []
+    for t in "UA":
+        for f in ("all", "cutoff", "power"):
+            x = X["c_clear_wins"][t][f]
+            row = [t, fam[f], x["n_mpnn_clear"], x["n_rawhgb_clear"], x["n_not_clear"]]
+            if f == "all":
+                row += ["–", "–"]
+            else:
+                d = X["d_within_family_observed"][t][f]
+                row += [fmt(d["observed_psi_G"], ".2f") + " " + fmt(d["observed_psi_G_boot95"], "ci2"),
+                        f"{d['split_half_n']}/{d['n']} {fmt(d['split_half_cp95'], 'ci2')}"]
+            rows.append(row)
+    write_table(out, "T20_mech_clear", ["Target", "Kernel family", "Clear MPNN wins", "Clear Raw-HGB wins", "Not clear",
+                                        "Observed 2p(1 − p) [boot]", "Split-half disagreements [exact 95%]"], rows,
+                "Post hoc: clear wins and within-family reversals beside split-half noise.")
+
+
 def tables_adequacy(an, out):
     """Tables of v15/model_adequacy.py (post hoc). Pre-registered values are shown unchanged beside the checks."""
     A = an["adequacy"]
@@ -412,6 +454,8 @@ def tables(stage, an, gens, S, d, tc, out):
                     f"Table S5. Post-hoc: ψ_G implied for priors with other shares of the two kernel families (Stage {stage}).")
     if "adequacy" in an:                                                # post-hoc model-adequacy checks (Task 1b)
         tables_adequacy(an, out)
+    if "mech" in an:                                                    # post-hoc checks of the kernel effect (P3)
+        tables_mechanism(an, out)
     if "screening" in d:
         sc = d["screening"]
         rows = [["Draws screened (k = {}–{})".format(sc["k_first"], sc["k_last"]), sc["n_draws"]],
@@ -579,6 +623,12 @@ def build(stage):
     ksf = RES / f"kernel_sensitivity_{stage}.json"                    # post-hoc kernel sensitivity (exploratory), if run
     if ksf.exists():
         an = {**an, "kernel": json.loads(ksf.read_text())}
+    pvf = RES.parent / "redesign_v15" / "provenance" / "stage9_near_benign.json"   # earlier analysis quoted in Section 3
+    if pvf.exists():
+        an = {**an, "earlier_stage9": json.loads(pvf.read_text())}
+    mcf = RES / f"mechanism_checks_{stage}.json"                      # post-hoc checks of the kernel effect, if run
+    if mcf.exists():
+        an = {**an, "mech": json.loads(mcf.read_text())}
     adf = RES / f"model_adequacy_{stage}.json"                        # post-hoc model-adequacy checks, if run
     if adf.exists():
         ad = json.loads(adf.read_text())

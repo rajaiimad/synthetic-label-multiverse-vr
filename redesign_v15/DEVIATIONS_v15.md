@@ -266,3 +266,15 @@ This is not a deviation from the plan. The authors asked for it after the Stage 
   - f. Episode level: log scale against raw scale, sign tests, and which generators drive the log-scale test.
   - g. Stage X per generator: GitHub against the laptop.
   - h. A side analysis with t-distributed random effects (ν = 3, 4, 5, 10). It down-weights extreme generators by construction, so it never replaces the pre-registered estimate.
+
+## Post-hoc checks of the kernel effect (2026-11-21)
+
+This is not a deviation from the plan. The authors asked for it after a referee-style review. It uses existing outputs only: no training and no new data. No pre-registered value changes, and no generator is dropped or down-weighted.
+
+- **Script and outputs.** `v15/mechanism_checks.py` writes `results_v15/mechanism_checks_C.{json,md}`. The script asserts that it reproduces the pre-registered S2 shares.
+- **Checks.**
+  - a. Outcome S2 by kernel family and target.
+  - b. Spearman correlation of λ with the kernel parameter within each family: p and |p − 1| for the power law, c for the cut-off, each with a bootstrap interval, plus terciles.
+  - c. Clear wins per detector, beyond 1.96 bootstrap SE and the 10% margin of S6.
+  - d. The within-family observed 2p(1 − p), with a bootstrap interval, beside the split-half disagreements.
+- **Provenance file.** `redesign_v15/provenance/stage9_near_benign.json` is an unchanged copy of an earlier analysis output. Section 0 of the frozen plan quotes it, and the paper uses its attack-induced frame counts (Section 3.2). The README in that folder records where it came from.

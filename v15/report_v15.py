@@ -623,6 +623,10 @@ def build(stage):
     ksf = RES / f"kernel_sensitivity_{stage}.json"                    # post-hoc kernel sensitivity (exploratory), if run
     if ksf.exists():
         an = {**an, "kernel": json.loads(ksf.read_text())}
+    axf = RES / "analysis_X.json"                                      # local Stage X re-estimation of M (Section 4.5)
+    if stage == "C" and axf.exists():
+        an = {**an, "stageX_reest": {k: v for k, v in json.loads(axf.read_text())["stage_x"]["reestimation"].items()
+                                     if isinstance(v, (int, float))}}
     pvf = RES.parent / "redesign_v15" / "provenance" / "stage9_near_benign.json"   # earlier analysis quoted in Section 3
     if pvf.exists():
         an = {**an, "earlier_stage9": json.loads(pvf.read_text())}

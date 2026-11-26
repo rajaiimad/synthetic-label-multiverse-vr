@@ -125,6 +125,20 @@ def derived(stage, an, gens, S):
     sc = screening(gens) if stage == "C" else None
     if sc:
         d["screening"] = sc
+    # descriptive: attainable ceiling on the TEST corpus (the screen used separate screening cohorts)
+    thr = 0.15
+    low = [(g, min(S[g]["meta"]["ceilings"]["U"], S[g]["meta"]["ceilings"]["A"])) for g in gens
+           if S[g]["meta"]["ceilings"]["U"] < thr or S[g]["meta"]["ceilings"]["A"] < thr]
+    low.sort(key=lambda x: x[1])
+    d["test_ceiling"] = {"threshold": thr, "n_below_any": len(low),
+                         "n_below_U": int(sum(S[g]["meta"]["ceilings"]["U"] < thr for g in gens)),
+                         "n_below_A": int(sum(S[g]["meta"]["ceilings"]["A"] < thr for g in gens)),
+                         "lowest": [{"generator": g, "ceiling": float(c)} for g, c in low[:2]]}
+    # descriptive: correlation of the U and A sampling errors within a generator (same cohorts, seeds, label noise)
+    r_ua = np.array([S[g]["frame"]["cov_UA_two"] / np.sqrt(S[g]["frame"]["U"]["v_two"] * S[g]["frame"]["A"]["v_two"])
+                     for g in gens if S[g]["frame"].get("cov_UA_two") is not None])
+    if len(r_ua):
+        d["ua_error_corr"] = {"median": float(np.median(r_ua)), "share_positive": float((r_ua > 0).mean()), "n": int(len(r_ua))}
     # post hoc (model adequacy): how the inverse-variance weights of the DL fit are spread over the generators
     from scipy import stats
     if len(gens) <= 20:                                                # Stage X: too few generators for this description
